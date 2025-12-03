@@ -22,6 +22,7 @@ public class BattleFrame extends JFrame {
     private JPanel rightPanel;
     private JPanel turnContainer; // The container for the stacking effect
 
+    // Dual Turn Panels
     private JPanel pnlYourTurn;
     private JPanel pnlEnemyTurn;
     private JLabel lblYourTurn;
@@ -37,9 +38,9 @@ public class BattleFrame extends JFrame {
     private final Color COLOR_ENEMY = new Color(178, 34, 34);  // Bright Red
     private final Color COLOR_ENEMY_DIM = new Color(80, 20, 20);  // Dark Red
 
-    // --- DIMENSIONS (This fixes the "Not Seen" issue) ---
-    private final Dimension DIM_ACTIVE = new Dimension(300, 100); // Big
-    private final Dimension DIM_INACTIVE = new Dimension(300, 50); // Small but VISIBLE (50px)
+    // --- DIMENSIONS ---
+    private final Dimension DIM_ACTIVE = new Dimension(300, 100);
+    private final Dimension DIM_INACTIVE = new Dimension(300, 50);
 
     public BattleFrame(Map playerMap) {
         super("Battleship - Combat Mode");
@@ -108,23 +109,19 @@ public class BattleFrame extends JFrame {
         rightPanel.setBackground(new Color(40, 40, 40));
         rightPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
 
-        // -- 1. TURN CONTAINER (Holds the 2 stacking banners) --
+        // -- 1. TURN CONTAINER --
         turnContainer = new JPanel();
         turnContainer.setLayout(new BoxLayout(turnContainer, BoxLayout.Y_AXIS));
         turnContainer.setOpaque(false);
-        // Allow enough height for both (100 + 50)
         turnContainer.setMaximumSize(new Dimension(300, 160));
 
-        // Initialize the panels
         initTurnPanels();
-
-        // Set initial state (Player Active)
         updateTurnIndicators(true);
 
         rightPanel.add(turnContainer);
         rightPanel.add(Box.createVerticalStrut(20)); // Spacer
 
-        // -- 2. Special Abilities Banner --
+        // -- 2. Special Abilities --
         JLabel lblAbilities = new JLabel("SPECIAL ABILITIES", SwingConstants.CENTER);
         lblAbilities.setFont(new Font("Arial", Font.BOLD, 22));
         lblAbilities.setForeground(Color.ORANGE);
@@ -169,13 +166,11 @@ public class BattleFrame extends JFrame {
     }
 
     private void initTurnPanels() {
-        // Init Player Panel
         pnlYourTurn = new JPanel(new BorderLayout());
         lblYourTurn = new JLabel("YOUR TURN", SwingConstants.CENTER);
         lblYourTurn.setForeground(Color.WHITE);
         pnlYourTurn.add(lblYourTurn, BorderLayout.CENTER);
 
-        // Init Enemy Panel
         pnlEnemyTurn = new JPanel(new BorderLayout());
         lblEnemyTurn = new JLabel("ENEMY TURN", SwingConstants.CENTER);
         lblEnemyTurn.setForeground(Color.WHITE);
@@ -190,6 +185,8 @@ public class BattleFrame extends JFrame {
         }
 
         boolean hit = computerMap.fireAt(target);
+        pnlComputer.repaint(); // Force paint request immediately
+
         log("Firing at " + (char)('A' + target.getY()) + (target.getX() + 1) + "...");
 
         if (hit) {
@@ -197,19 +194,22 @@ public class BattleFrame extends JFrame {
             if (!computerMap.hasShips()) {
                 gameOver = true;
                 log("ENEMY FLEET ELIMINATED. VICTORY!");
-                JOptionPane.showMessageDialog(this, "VICTORY!");
+
+                // --- FIX: Delay the popup so the red tile paints first ---
+                Timer t = new Timer(100, e -> {
+                    JOptionPane.showMessageDialog(this, "VICTORY!");
+                });
+                t.setRepeats(false);
+                t.start();
             }
         } else {
             log(">> Miss.");
         }
 
-        pnlComputer.repaint();
-
         if (!gameOver) {
             playerTurn = false;
-            updateTurnIndicators(false); // Switch to Enemy
+            updateTurnIndicators(false);
 
-            // Delay for AI
             Timer t = new Timer(800, e -> executeComputerTurn());
             t.setRepeats(false);
             t.start();
@@ -221,6 +221,8 @@ public class BattleFrame extends JFrame {
         Position p = report.getP();
         log("Enemy attacking " + (char)('A' + p.getY()) + (p.getX() + 1));
 
+        pnlPlayer.repaint(); // Force paint request
+
         if (report.isHit()) {
             log(">> ALERT! WE HAVE BEEN HIT!");
             if (report.isSunk()) {
@@ -229,55 +231,49 @@ public class BattleFrame extends JFrame {
             if (!playerMap.hasShips()) {
                 gameOver = true;
                 log("FLEET DESTROYED. GAME OVER.");
-                JOptionPane.showMessageDialog(this, "DEFEAT!");
+
+                // --- FIX: Delay the popup here too ---
+                Timer t = new Timer(100, e -> {
+                    JOptionPane.showMessageDialog(this, "DEFEAT!");
+                });
+                t.setRepeats(false);
+                t.start();
             }
         } else {
             log(">> Enemy shot missed.");
         }
 
-        pnlPlayer.repaint();
         playerTurn = true;
-        updateTurnIndicators(true); // Switch to Player
+        updateTurnIndicators(true);
     }
 
     // --- Helper UI Methods ---
 
-    /**
-     * Rebuilds the turnContainer to show the "Active" panel BIG on top,
-     * and the "Inactive" panel SMALL on bottom.
-     */
     private void updateTurnIndicators(boolean isPlayer) {
-        turnContainer.removeAll(); // Clear current layout
+        turnContainer.removeAll();
 
         if (isPlayer) {
-            // --- STATE: PLAYER TURN ---
-
-            // 1. Top Panel (Player - Active)
+            // Player Active
             stylePanel(pnlYourTurn, lblYourTurn, COLOR_PLAYER, DIM_ACTIVE, true);
             turnContainer.add(pnlYourTurn);
 
-            // 2. Bottom Panel (Enemy - Inactive/Peeking)
+            // Enemy Inactive
             stylePanel(pnlEnemyTurn, lblEnemyTurn, COLOR_ENEMY_DIM, DIM_INACTIVE, false);
             turnContainer.add(pnlEnemyTurn);
-
         } else {
-            // --- STATE: ENEMY TURN ---
-
-            // 1. Top Panel (Enemy - Active)
+            // Enemy Active
             stylePanel(pnlEnemyTurn, lblEnemyTurn, COLOR_ENEMY, DIM_ACTIVE, true);
             turnContainer.add(pnlEnemyTurn);
 
-            // 2. Bottom Panel (Player - Inactive/Peeking)
+            // Player Inactive
             stylePanel(pnlYourTurn, lblYourTurn, COLOR_PLAYER_DIM, DIM_INACTIVE, false);
             turnContainer.add(pnlYourTurn);
         }
 
-        // Force UI Refresh
         turnContainer.revalidate();
         turnContainer.repaint();
     }
 
-    // Helper to apply size/color styles dynamically
     private void stylePanel(JPanel pnl, JLabel lbl, Color bg, Dimension dim, boolean isActive) {
         pnl.setBackground(bg);
         pnl.setMaximumSize(dim);
@@ -286,7 +282,6 @@ public class BattleFrame extends JFrame {
                 BorderFactory.createLineBorder(Color.WHITE, 2) :
                 BorderFactory.createLineBorder(Color.GRAY, 1));
 
-        // Make text smaller if inactive so it fits in the small bar
         lbl.setFont(new Font("Arial", Font.BOLD, isActive ? 28 : 16));
         lbl.setForeground(isActive ? Color.WHITE : Color.LIGHT_GRAY);
     }

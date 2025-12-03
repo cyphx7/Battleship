@@ -5,7 +5,6 @@ import java.util.Random;
 
 public class Map {
     public static final int MAP_SIZE = 10;
-    // Constants exposed for UI to see
     public static final char EMPTY = '0', SHIP = 'X', WATER = 'A', HIT = 'C';
 
     private char[][] mapGrid;
@@ -19,34 +18,31 @@ public class Map {
                 mapGrid[i][j] = EMPTY;
     }
 
-    // --- NEW METHOD NEEDED FOR UI ---
     public char getGridAt(int row, int col) {
         return mapGrid[row][col];
     }
-    // --------------------------------
 
     public void fillRandomly() {
         clear();
         Random r = new Random();
+
+        // Standard Battleship Fleet: Carrier(5), Battleship(4), Cruiser(3), Sub(3), Destroyer(2)
+        placeShipRandomly(r, 5);
         placeShipRandomly(r, 4);
         placeShipRandomly(r, 3);
         placeShipRandomly(r, 3);
         placeShipRandomly(r, 2);
-        placeShipRandomly(r, 2);
-        placeShipRandomly(r, 2);
-        placeShipRandomly(r, 1);
-        placeShipRandomly(r, 1);
-        placeShipRandomly(r, 1);
-        placeShipRandomly(r, 1);
     }
 
     private void clear() {
+        shipList.clear();
         for (int i = 0; i < MAP_SIZE; i++)
             for (int j = 0; j < MAP_SIZE; j++)
                 mapGrid[i][j] = EMPTY;
     }
 
     public boolean placeShip(int x, int y, int size, int direction) {
+        // Bounds Check
         if (direction == 1 && x + size > MAP_SIZE) return false;
         if (direction == 0 && y + size > MAP_SIZE) return false;
 
@@ -75,6 +71,7 @@ public class Map {
         boolean placed;
         int[] data = new int[4];
         int direction, row, col;
+        // Attempt to place until valid spot found
         do {
             placed = true;
             direction = random.nextInt(2); // 0=Horizontal, 1=Vertical
@@ -89,30 +86,42 @@ public class Map {
             else placed = checkVertical(row, col, size);
         } while (!placed);
 
-        placeShip(row, col, size, direction); // Reuse the logic
+        placeShip(row, col, size, direction);
 
         data[0] = row; data[1] = col; data[2] = size; data[3] = direction;
         return data;
     }
 
+    // --- UPDATED: Strict Adjacency Checks (No Touching) ---
+
     public boolean checkVertical(int row, int col, int size) {
-        if (row != 0 && mapGrid[row - 1][col] == SHIP) return false;
-        if (row != MAP_SIZE - size && mapGrid[row + size][col] == SHIP) return false;
-        for (int i = 0; i < size; i++) {
-            if (col != 0 && mapGrid[row + i][col - 1] == SHIP) return false;
-            if (col != MAP_SIZE - 1 && mapGrid[row + i][col + 1] == SHIP) return false;
-            if (mapGrid[row + i][col] == SHIP) return false;
+        // Define the "Bounding Box" to check (Ship + 1 cell padding on all sides)
+        int rStart = Math.max(0, row - 1);
+        int rEnd = Math.min(MAP_SIZE - 1, row + size); // row+size is the cell directly below the ship
+        int cStart = Math.max(0, col - 1);
+        int cEnd = Math.min(MAP_SIZE - 1, col + 1);
+
+        // Scan the box area
+        for (int r = rStart; r <= rEnd; r++) {
+            for (int c = cStart; c <= cEnd; c++) {
+                if (mapGrid[r][c] == SHIP) return false; // Fail if ANY ship part is near
+            }
         }
         return true;
     }
 
     public boolean checkHorizontal(int row, int col, int size) {
-        if (col != 0 && mapGrid[row][col - 1] == SHIP) return false;
-        if (col != MAP_SIZE - size && mapGrid[row][col + size] == SHIP) return false;
-        for (int i = 0; i < size; i++) {
-            if (row != 0 && mapGrid[row - 1][col + i] == SHIP) return false;
-            if (row != MAP_SIZE - 1 && mapGrid[row + 1][col + i] == SHIP) return false;
-            if (mapGrid[row][col + i] == SHIP) return false;
+        // Define the "Bounding Box" to check
+        int rStart = Math.max(0, row - 1);
+        int rEnd = Math.min(MAP_SIZE - 1, row + 1);
+        int cStart = Math.max(0, col - 1);
+        int cEnd = Math.min(MAP_SIZE - 1, col + size); // col+size is the cell directly right of the ship
+
+        // Scan the box area
+        for (int r = rStart; r <= rEnd; r++) {
+            for (int c = cStart; c <= cEnd; c++) {
+                if (mapGrid[r][c] == SHIP) return false; // Fail if ANY ship part is near
+            }
         }
         return true;
     }
@@ -122,6 +131,7 @@ public class Map {
         int col = p.getY();
         if (mapGrid[row][col] == SHIP) {
             mapGrid[row][col] = HIT;
+            checkSunk(p);
             return true;
         } else if (mapGrid[row][col] == EMPTY) {
             mapGrid[row][col] = WATER;
