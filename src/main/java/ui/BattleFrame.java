@@ -1,345 +1,318 @@
 package ui;
 
-import java.awt.Cursor;
-import java.awt.Dimension;
-import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import java.util.LinkedList;
-import java.util.StringTokenizer;
-
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.Timer;
-
 import game.Computer;
-import game.Map; // Renamed
-import game.Ship; // Renamed
-import game.Position; // Renamed
+import game.Map;
+import game.Position;
 import game.Report;
 
-public class BattleFrame implements ActionListener, KeyListener {
-    UIMapPanel playerPanel = new UIMapPanel("player");
-    UIMapPanel cpuPanel = new UIMapPanel("cpu");
-    JFrame frame = new JFrame("Battleship");
-    Cursor cursorDefault = Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR);
-    UIJPanelBG panel = new UIJPanelBG(
-            Toolkit.getDefaultToolkit().createImage(getClass().getResource("/res/images/battleImg.jpg")));
-    Report rep;
-    Computer cpu;
-    Map cpuMap; // Renamed
-    Map playerMap; // Renamed
-    int numPlayerShips = 10;
-    int numCPUShips = 10;
-    StringBuilder sb = new StringBuilder();
-    boolean b = true;
-    UIStatPanel statPlayer;
-    UIStatPanel statCPU;
-    JPanel targetPanel = new JPanel(null);
-    UIJPanelBG target = new UIJPanelBG(
-            Toolkit.getDefaultToolkit().createImage(getClass().getResource("/res/images/target.png")));
-    ImageIcon wreck = new ImageIcon(getClass().getResource("/res/images/wreck.gif"));
-    Cursor cursor = Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR);
-    Timer timer;
-    boolean cpuTurn;
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import java.awt.*;
 
-    public BattleFrame(LinkedList<int[]> playerShips, Map map) { // Renamed
-        playerMap = map;
-        cpu = new Computer(map);
-        cpuMap = new Map(); // Renamed
-        cpuMap.fillRandomly(); // Renamed
-        frame.setSize(1080, 700);
-        frame.setTitle("Battleship - Pirate Edition");
-        frame.setFocusable(true);
-        frame.requestFocusInWindow();
-        frame.addKeyListener(this);
-        frame.setIconImage(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/res/images/icon.png")));
-        Dimension dimension = Toolkit.getDefaultToolkit().getScreenSize();
-        int x = (int) ((dimension.getWidth() - frame.getWidth()) / 2);
-        int y = (int) ((dimension.getHeight() - frame.getHeight()) / 2);
-        frame.setLocation(x, y);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        // Panel containing the ships to eliminate
-        statPlayer = new UIStatPanel();
-        statCPU = new UIStatPanel();
-        statPlayer.setBounds(30, 595, 500, 80);
-        statCPU.setBounds(570, 595, 500, 80);
-        frame.add(statPlayer);
-        frame.add(statCPU);
-        // Target Panel
-        targetPanel.setBounds(0, 0, 500, 500);
-        targetPanel.setOpaque(false);
-        playerPanel.sea.add(targetPanel);
-        panel.add(playerPanel);
-        playerPanel.setBounds(0, 0, UIMapPanel.X, UIMapPanel.Y);
-        playerPanel.setOpaque(false);
-        panel.add(cpuPanel);
-        cpuPanel.setBounds(540, 0, UIMapPanel.X, UIMapPanel.Y);
-        frame.add(panel);
-        frame.setResizable(false);
-        timer = new Timer(2000, new TimerHandler());
-        cpuTurn = false;
+public class BattleFrame extends JFrame {
+    private Map playerMap;
+    private Map computerMap;
+    private Computer computerAI;
 
-        for (int i = 0; i < cpuPanel.buttons.length; i++) {
-            for (int j = 0; j < cpuPanel.buttons[i].length; j++) {
-                cpuPanel.buttons[i][j].addActionListener(this);
-                cpuPanel.buttons[i][j].setActionCommand("" + i + " " + j);
+    private UIMapPanel pnlPlayer;
+    private UIMapPanel pnlComputer;
+    private JTextArea logArea;
+
+    // Right Panel Components
+    private JPanel rightPanel;
+    private JPanel turnContainer; // The container for the stacking effect
+
+    private JPanel pnlYourTurn;
+    private JPanel pnlEnemyTurn;
+    private JLabel lblYourTurn;
+    private JLabel lblEnemyTurn;
+
+    private boolean playerTurn = true;
+    private boolean gameOver = false;
+
+    // --- COLORS ---
+    private final Color COLOR_PLAYER = new Color(34, 139, 34); // Bright Green
+    private final Color COLOR_PLAYER_DIM = new Color(20, 80, 20); // Dark Green
+
+    private final Color COLOR_ENEMY = new Color(178, 34, 34);  // Bright Red
+    private final Color COLOR_ENEMY_DIM = new Color(80, 20, 20);  // Dark Red
+
+    // --- DIMENSIONS (This fixes the "Not Seen" issue) ---
+    private final Dimension DIM_ACTIVE = new Dimension(300, 100); // Big
+    private final Dimension DIM_INACTIVE = new Dimension(300, 50); // Small but VISIBLE (50px)
+
+    public BattleFrame(Map playerMap) {
+        super("Battleship - Combat Mode");
+        this.playerMap = playerMap;
+
+        // 1. Initialize Enemy Data
+        computerMap = new Map();
+        computerMap.fillRandomly();
+        computerAI = new Computer(playerMap); // AI targets you
+
+        initUI();
+    }
+
+    private void initUI() {
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setSize(1100, 850);
+        setLayout(new BorderLayout());
+
+        // ==========================================
+        // CENTER PANEL: Grids + Console Log
+        // ==========================================
+        JPanel centerPanel = new JPanel(new BorderLayout());
+        centerPanel.setBackground(new Color(50, 50, 50));
+
+        // -- 1. Grids Area --
+        JPanel gridContainer = new JPanel(new GridLayout(1, 2, 20, 0));
+        gridContainer.setOpaque(false);
+        gridContainer.setBorder(new EmptyBorder(20, 20, 20, 20));
+
+        pnlPlayer = new UIMapPanel(playerMap, true);
+        pnlComputer = new UIMapPanel(computerMap, false);
+
+        // CLICK EVENT
+        pnlComputer.setOnCellClicked(pos -> {
+            if (playerTurn && !gameOver) {
+                executePlayerTurn(pos);
             }
-        }
-        for (int[] v : playerShips) {
-            playerPanel.drawShip(v); // Renamed
-        }
+        });
 
+        gridContainer.add(createLabeledPanel("YOUR FLEET", pnlPlayer));
+        gridContainer.add(createLabeledPanel("ENEMY SECTOR", pnlComputer));
+
+        centerPanel.add(gridContainer, BorderLayout.CENTER);
+
+        // -- 2. Console Log Area --
+        logArea = new JTextArea();
+        logArea.setEditable(false);
+        logArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        logArea.setForeground(Color.GREEN);
+        logArea.setBackground(Color.BLACK);
+
+        JScrollPane scroll = new JScrollPane(logArea);
+        scroll.setPreferredSize(new Dimension(0, 150));
+        scroll.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(Color.GRAY), "MISSION LOG", 0, 0, null, Color.WHITE));
+
+        centerPanel.add(scroll, BorderLayout.SOUTH);
+        add(centerPanel, BorderLayout.CENTER);
+
+
+        // ==========================================
+        // RIGHT PANEL: Controls
+        // ==========================================
+        rightPanel = new JPanel();
+        rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
+        rightPanel.setPreferredSize(new Dimension(300, 0));
+        rightPanel.setBackground(new Color(40, 40, 40));
+        rightPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
+
+        // -- 1. TURN CONTAINER (Holds the 2 stacking banners) --
+        turnContainer = new JPanel();
+        turnContainer.setLayout(new BoxLayout(turnContainer, BoxLayout.Y_AXIS));
+        turnContainer.setOpaque(false);
+        // Allow enough height for both (100 + 50)
+        turnContainer.setMaximumSize(new Dimension(300, 160));
+
+        // Initialize the panels
+        initTurnPanels();
+
+        // Set initial state (Player Active)
+        updateTurnIndicators(true);
+
+        rightPanel.add(turnContainer);
+        rightPanel.add(Box.createVerticalStrut(20)); // Spacer
+
+        // -- 2. Special Abilities Banner --
+        JLabel lblAbilities = new JLabel("SPECIAL ABILITIES", SwingConstants.CENTER);
+        lblAbilities.setFont(new Font("Arial", Font.BOLD, 22));
+        lblAbilities.setForeground(Color.ORANGE);
+        lblAbilities.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        rightPanel.add(lblAbilities);
+        rightPanel.add(Box.createVerticalStrut(15));
+
+        // -- 3. Ability Buttons --
+        JPanel abilityGrid = new JPanel(new GridLayout(1, 2, 15, 0));
+        abilityGrid.setOpaque(false);
+        abilityGrid.setMaximumSize(new Dimension(300, 80));
+        abilityGrid.setPreferredSize(new Dimension(300, 80));
+
+        JButton btnAbility1 = new JButton("RADAR");
+        JButton btnAbility2 = new JButton("AIRSTRIKE");
+        styleButton(btnAbility1);
+        styleButton(btnAbility2);
+
+        abilityGrid.add(btnAbility1);
+        abilityGrid.add(btnAbility2);
+
+        rightPanel.add(abilityGrid);
+        rightPanel.add(Box.createVerticalStrut(30));
+
+        // -- 4. Fleet Status Banner --
+        JPanel fleetPanel = new JPanel(new BorderLayout());
+        fleetPanel.setBackground(Color.LIGHT_GRAY);
+        fleetPanel.setBorder(BorderFactory.createTitledBorder("FLEET STATUS"));
+
+        fleetPanel.setMaximumSize(new Dimension(300, Integer.MAX_VALUE));
+        fleetPanel.setPreferredSize(new Dimension(300, 200));
+
+        JLabel lblFleetPlaceholder = new JLabel("<html><center>User Ships Icons<br>vs<br>Enemy Ships Icons</center></html>", SwingConstants.CENTER);
+        fleetPanel.add(lblFleetPlaceholder, BorderLayout.CENTER);
+
+        rightPanel.add(fleetPanel);
+
+        add(rightPanel, BorderLayout.EAST);
+
+        log("Battle stations ready. Select a target on the Enemy Sector.");
     }
 
-    void setCell(Report rep, boolean player) { // Renamed from setCasella
-        int x = rep.getP().getX(); // Renamed
-        int y = rep.getP().getY(); // Renamed
-        ImageIcon fire = new ImageIcon(getClass().getResource("/res/images/fireButton.gif"));
-        ImageIcon water = new ImageIcon(getClass().getResource("/res/images/grayButton.gif"));
-        String what;
-        if (rep.isHit()) // Renamed
-            what = "X";
-        else
-            what = "A";
-        UIMapPanel mappanel;
-        if (!player) {
-            mappanel = playerPanel;
-        } else {
-            mappanel = cpuPanel;
-        }
-        if (what == "X") {
-            mappanel.buttons[x][y].setIcon(fire);
-            mappanel.buttons[x][y].setEnabled(false);
-            mappanel.buttons[x][y].setDisabledIcon(fire);
-            mappanel.buttons[x][y].setCursor(cursorDefault);
-        } else {
-            mappanel.buttons[x][y].setIcon(water);
-            mappanel.buttons[x][y].setEnabled(false);
-            mappanel.buttons[x][y].setDisabledIcon(water);
-            mappanel.buttons[x][y].setCursor(cursorDefault);
-        }
+    private void initTurnPanels() {
+        // Init Player Panel
+        pnlYourTurn = new JPanel(new BorderLayout());
+        lblYourTurn = new JLabel("YOUR TURN", SwingConstants.CENTER);
+        lblYourTurn.setForeground(Color.WHITE);
+        pnlYourTurn.add(lblYourTurn, BorderLayout.CENTER);
 
+        // Init Enemy Panel
+        pnlEnemyTurn = new JPanel(new BorderLayout());
+        lblEnemyTurn = new JLabel("ENEMY TURN", SwingConstants.CENTER);
+        lblEnemyTurn.setForeground(Color.WHITE);
+        pnlEnemyTurn.add(lblEnemyTurn, BorderLayout.CENTER);
     }
 
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        if (cpuTurn)
+    // --- Game Logic Methods ---
+
+    private void executePlayerTurn(Position target) {
+        if (computerMap.isHit(target) || computerMap.isWater(target)) {
             return;
-        JButton source = (JButton) e.getSource();
-        StringTokenizer st = new StringTokenizer(source.getActionCommand(), " ");
-        int x = Integer.parseInt(st.nextToken());
-        int y = Integer.parseInt(st.nextToken());
-        Position newP = new Position(x, y); // Renamed
-        boolean hit = cpuMap.fireAt(newP); // Renamed
-        Report rep = new Report(newP, hit, false);
-        this.setCell(rep, true); // Renamed
-        if (hit) { // player's turn continues
-            Ship sunkShip = cpuMap.checkSunk(newP); // Renamed
-            if (sunkShip != null) {
-                numCPUShips--;
-                setSunk(sunkShip); // Renamed
-                if (numCPUShips == 0) {
-                    Object[] options = { "New Game", "Exit" };
-                    int n = JOptionPane.showOptionDialog(frame, (new JLabel("You Win!", JLabel.CENTER)),
-                            "Game Over", JOptionPane.YES_NO_OPTION, JOptionPane.PLAIN_MESSAGE, null, options,
-                            options[1]);
-                    if (n == 0) {
-                        ShipPlacementFrame restart = new ShipPlacementFrame(); // Renamed
-                        restart.setVisible(true);
-                        this.frame.setVisible(false);
-                    } else {
-                        System.exit(0);
-                    }
-                }
+        }
+
+        boolean hit = computerMap.fireAt(target);
+        log("Firing at " + (char)('A' + target.getY()) + (target.getX() + 1) + "...");
+
+        if (hit) {
+            log(">> SPLASH! DIRECT HIT!");
+            if (!computerMap.hasShips()) {
+                gameOver = true;
+                log("ENEMY FLEET ELIMINATED. VICTORY!");
+                JOptionPane.showMessageDialog(this, "VICTORY!");
             }
-        } else { // CPU's turn
-            if (b) {
-                timer.start();
-                cpuTurn = true;
-            }
+        } else {
+            log(">> Miss.");
         }
-        frame.requestFocusInWindow();
-    }
 
-    private void setSunk(Position p) { // Renamed from setAffondato
-        LinkedList<String> possibilities = new LinkedList<String>();
-        if (p.getX() != 0) {
-            possibilities.add("N");
-        }
-        if (p.getX() != Map.MAP_SIZE - 1) { // Renamed
-            possibilities.add("S");
-        }
-        if (p.getY() != 0) {
-            possibilities.add("O");
-        }
-        if (p.getY() != Map.MAP_SIZE - 1) { // Renamed
-            possibilities.add("E");
-        }
-        String direction;
-        boolean found = false;
-        Position currentPos;
-        do {
-            currentPos = new Position(p);
-            if (possibilities.isEmpty()) {
-                deleteShip(1, statPlayer);
-                playerPanel.buttons[currentPos.getX()][currentPos.getY()].setIcon(wreck);
-                playerPanel.buttons[currentPos.getX()][currentPos.getY()].setEnabled(false);
-                playerPanel.buttons[currentPos.getX()][currentPos.getY()].setDisabledIcon(wreck);
-                playerPanel.buttons[currentPos.getX()][currentPos.getY()].setCursor(cursorDefault);
-                return;
-            }
-            direction = possibilities.removeFirst();
-            currentPos.move(direction.charAt(0)); // Renamed
-            if (playerMap.isHit(currentPos)) { // Renamed
-                found = true;
-            }
-        } while (!found);
-        int size = 0;
-        currentPos = new Position(p);
-        do {
+        pnlComputer.repaint();
 
-            playerPanel.buttons[currentPos.getX()][currentPos.getY()].setIcon(wreck);
-            playerPanel.buttons[currentPos.getX()][currentPos.getY()].setEnabled(false);
-            playerPanel.buttons[currentPos.getX()][currentPos.getY()].setDisabledIcon(wreck);
-            playerPanel.buttons[currentPos.getX()][currentPos.getY()].setCursor(cursorDefault);
-            currentPos.move(direction.charAt(0)); // Renamed
+        if (!gameOver) {
+            playerTurn = false;
+            updateTurnIndicators(false); // Switch to Enemy
 
-            size++;
-        } while (currentPos.getX() >= 0 && currentPos.getX() <= 9 && currentPos.getY() >= 0
-                && currentPos.getY() <= 9 && !playerMap.isWater(currentPos)); // Renamed
-
-        deleteShip(size, statPlayer);
-    }
-
-    private void setSunk(Ship sunkShip) { // Renamed from setAffondato
-        int size = 0;
-        for (int i = sunkShip.getStartX(); i <= sunkShip.getEndX(); i++) {
-            for (int j = sunkShip.getStartY(); j <= sunkShip.getEndY(); j++) {
-                cpuPanel.buttons[i][j].setIcon(wreck);
-                cpuPanel.buttons[i][j].setEnabled(false);
-                cpuPanel.buttons[i][j].setDisabledIcon(wreck);
-                cpuPanel.buttons[i][j].setCursor(cursorDefault);
-                size++;
-            }
-        }
-        deleteShip(size, statCPU);
-    }
-
-    private void deleteShip(int size, UIStatPanel panel) {
-        switch (size) {
-            case 4:
-                panel.ships[0].setEnabled(false);
-                break;
-            case 3:
-                if (!panel.ships[1].isEnabled())
-                    panel.ships[2].setEnabled(false);
-                else
-                    panel.ships[1].setEnabled(false);
-                break;
-            case 2:
-                if (!panel.ships[3].isEnabled())
-                    if (!panel.ships[4].isEnabled())
-                        panel.ships[5].setEnabled(false);
-                    else
-                        panel.ships[4].setEnabled(false);
-                else
-                    panel.ships[3].setEnabled(false);
-                break;
-            case 1:
-                if (!panel.ships[6].isEnabled())
-                    if (!panel.ships[7].isEnabled())
-                        if (!panel.ships[8].isEnabled())
-                            panel.ships[9].setEnabled(false);
-                        else
-                            panel.ships[8].setEnabled(false);
-                    else
-                        panel.ships[7].setEnabled(false);
-                else
-                    panel.ships[6].setEnabled(false);
-                break;
-            default:
-                break;
+            // Delay for AI
+            Timer t = new Timer(800, e -> executeComputerTurn());
+            t.setRepeats(false);
+            t.start();
         }
     }
 
-    @Override
-    public void keyPressed(KeyEvent arg0) {
-        int key = arg0.getKeyCode();
-        if (key == KeyEvent.VK_ESCAPE) {
-            ShipPlacementFrame manage = new ShipPlacementFrame(); // Renamed
-            manage.setVisible(true);
-            frame.setVisible(false);
+    private void executeComputerTurn() {
+        Report report = computerAI.takeTurn();
+        Position p = report.getP();
+        log("Enemy attacking " + (char)('A' + p.getY()) + (p.getX() + 1));
+
+        if (report.isHit()) {
+            log(">> ALERT! WE HAVE BEEN HIT!");
+            if (report.isSunk()) {
+                log(">> SHIP LOST!");
+            }
+            if (!playerMap.hasShips()) {
+                gameOver = true;
+                log("FLEET DESTROYED. GAME OVER.");
+                JOptionPane.showMessageDialog(this, "DEFEAT!");
+            }
+        } else {
+            log(">> Enemy shot missed.");
         }
 
-        sb.append(arg0.getKeyChar());
-        if (sb.length() == 4) {
-            int z = sb.toString().hashCode();
-            if (z == 3194657) { // "fiki"?? Easter egg
-                sb = new StringBuilder();
-                b = !b;
-            } else {
-                String s = sb.substring(1, 4);
-                sb = new StringBuilder(s);
-            }
-        }
+        pnlPlayer.repaint();
+        playerTurn = true;
+        updateTurnIndicators(true); // Switch to Player
     }
 
-    @Override
-    public void keyReleased(KeyEvent arg0) {}
+    // --- Helper UI Methods ---
 
-    @Override
-    public void keyTyped(KeyEvent arg0) {}
+    /**
+     * Rebuilds the turnContainer to show the "Active" panel BIG on top,
+     * and the "Inactive" panel SMALL on bottom.
+     */
+    private void updateTurnIndicators(boolean isPlayer) {
+        turnContainer.removeAll(); // Clear current layout
 
-    public class TimerHandler implements ActionListener { // Renamed from GestoreTimer
+        if (isPlayer) {
+            // --- STATE: PLAYER TURN ---
 
-        @Override
-        public void actionPerformed(ActionEvent arg0) {
-            timer.stop();
-            boolean flag;
+            // 1. Top Panel (Player - Active)
+            stylePanel(pnlYourTurn, lblYourTurn, COLOR_PLAYER, DIM_ACTIVE, true);
+            turnContainer.add(pnlYourTurn);
 
-            Report report = cpu.takeTurn(); // Renamed
-            drawTarget(report.getP().getX() * 50, report.getP().getY() * 50); // Renamed
-            flag = report.isHit();
-            setCell(report, false); // Renamed
-            if (report.isSunk()) { // Renamed
-                numPlayerShips--;
-                setSunk(report.getP()); // Renamed
-                if (numPlayerShips == 0) {
-                    Object[] options = { "New Game", "Exit" };
-                    int n = JOptionPane.showOptionDialog(frame, (new JLabel("You Lost!", JLabel.CENTER)),
-                            "Game Over", JOptionPane.YES_NO_OPTION, JOptionPane.PLAIN_MESSAGE, null, options,
-                            options[1]);
-                    if (n == 0) {
-                        ShipPlacementFrame restart = new ShipPlacementFrame(); // Renamed
-                        restart.setVisible(true);
-                        frame.setVisible(false);
-                    } else {
-                        System.exit(0);
-                    }
-                }
-            }
+            // 2. Bottom Panel (Enemy - Inactive/Peeking)
+            stylePanel(pnlEnemyTurn, lblEnemyTurn, COLOR_ENEMY_DIM, DIM_INACTIVE, false);
+            turnContainer.add(pnlEnemyTurn);
 
-            cpuTurn = false;
-            if (flag) {
-                timer.start();
-                cpuTurn = true;
-            }
-            frame.requestFocusInWindow();
+        } else {
+            // --- STATE: ENEMY TURN ---
+
+            // 1. Top Panel (Enemy - Active)
+            stylePanel(pnlEnemyTurn, lblEnemyTurn, COLOR_ENEMY, DIM_ACTIVE, true);
+            turnContainer.add(pnlEnemyTurn);
+
+            // 2. Bottom Panel (Player - Inactive/Peeking)
+            stylePanel(pnlYourTurn, lblYourTurn, COLOR_PLAYER_DIM, DIM_INACTIVE, false);
+            turnContainer.add(pnlYourTurn);
         }
 
+        // Force UI Refresh
+        turnContainer.revalidate();
+        turnContainer.repaint();
     }
 
-    public void drawTarget(int i, int j) { // Renamed from disegnaTarget
-        target.setBounds(j, i, 50, 50);
-        target.setVisible(true);
-        targetPanel.add(target);
-        targetPanel.repaint();
+    // Helper to apply size/color styles dynamically
+    private void stylePanel(JPanel pnl, JLabel lbl, Color bg, Dimension dim, boolean isActive) {
+        pnl.setBackground(bg);
+        pnl.setMaximumSize(dim);
+        pnl.setPreferredSize(dim);
+        pnl.setBorder(isActive ?
+                BorderFactory.createLineBorder(Color.WHITE, 2) :
+                BorderFactory.createLineBorder(Color.GRAY, 1));
+
+        // Make text smaller if inactive so it fits in the small bar
+        lbl.setFont(new Font("Arial", Font.BOLD, isActive ? 28 : 16));
+        lbl.setForeground(isActive ? Color.WHITE : Color.LIGHT_GRAY);
+    }
+
+    private JPanel createLabeledPanel(String title, JPanel panel) {
+        JPanel p = new JPanel(new BorderLayout());
+        p.setOpaque(false);
+        JLabel l = new JLabel(title, SwingConstants.CENTER);
+        l.setForeground(Color.WHITE);
+        l.setFont(new Font("Arial", Font.BOLD, 14));
+        l.setBorder(new EmptyBorder(0, 0, 5, 0));
+        p.add(l, BorderLayout.NORTH);
+        p.add(panel, BorderLayout.CENTER);
+        return p;
+    }
+
+    private void styleButton(JButton btn) {
+        btn.setBackground(Color.DARK_GRAY);
+        btn.setForeground(Color.WHITE);
+        btn.setFocusPainted(false);
+        btn.setFont(new Font("Arial", Font.BOLD, 16));
+        btn.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+    }
+
+    private void log(String msg) {
+        logArea.append(msg + "\n");
+        logArea.setCaretPosition(logArea.getDocument().getLength());
     }
 }

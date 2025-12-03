@@ -1,6 +1,6 @@
 package game;
 
-import ui.ShipPlacementFrame; // Changed from FrameManageship
+import ui.ShipPlacementFrame;
 import ui.FrameSplashscreen;
 
 public class BattleShip {
@@ -12,14 +12,8 @@ public class BattleShip {
         } catch (InterruptedException e) {
         }
         intro.setVisible(false);
-        // FrameManageship2PlClient manage = new FrameManageship2PlClient();
-        // FrameManageship2PlServer manage = new FrameManageship2PlServer();
-
-        // Renamed FrameManageship to ShipPlacementFrame
         ShipPlacementFrame manage = new ShipPlacementFrame();
 
-        // FrameMenu menu = new FrameMenu();
         manage.setVisible(true);
-        // menu.setVisible(true);
     }
 }

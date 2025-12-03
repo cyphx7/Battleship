@@ -1,229 +1,257 @@
 package ui;
 
-import java.awt.Dimension;
-import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import java.util.LinkedList;
+import game.Map;
+import game.Position;
+
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import java.awt.*;
 import java.util.Random;
-import java.util.StringTokenizer;
 
-import javax.swing.JButton;
-import javax.swing.JFrame;
+public class ShipPlacementFrame extends JFrame {
+    private Map mapPlayer;
+    private UIMapPanel panelPlayer;
+    private JPanel centerPanel; // Wrapper for the grid
 
-import game.Map; // Changed from Mappa
+    // UI Components
+    private JLabel lblStatus;
+    private JButton btnRotate, btnReset, btnRandom, btnStart;
 
-public class ShipPlacementFrame extends JFrame implements ActionListener, KeyListener {
-    private static final long serialVersionUID = 2923975805665801740L;
-    private static final int NUM_SHIPS = 10;
-    LinkedList<int[]> playerShips; // contains the placed ships, needed for BattleFrame
-    boolean finished = false;
-    int shipsPlaced = 0;
-    int[] shipCounter = { 1, 2, 3, 4 };
-    Map map; // Changed from Mappa
-    UIManagePanel choosePan;
-    UIMapPanel mapPanel;
+    // Ship List Labels
+    private JLabel[] shipLabels;
+
+    // Logic Variables
+    private int currentDirection = 0; // 0 = Horizontal, 1 = Vertical
+    private int currentShipIndex = 0;
+
+    // Data (Standard Battleship Ships)
+    private final String[] SHIP_NAMES = {"Carrier", "Battleship", "Cruiser", "Submarine", "Destroyer"};
+    private final int[] SHIP_SIZES = {5, 4, 3, 3, 2};
+
+    // Colors
+    private final Color COLOR_BG = new Color(50, 50, 50);
+    private final Color COLOR_SIDEBAR = new Color(40, 40, 40);
+    private final Color COLOR_TEXT = Color.WHITE;
+    private final Color COLOR_ACCENT = new Color(255, 165, 0); // Orange
+    private final Color COLOR_SUCCESS = new Color(50, 205, 50); // Green
 
     public ShipPlacementFrame() {
-        super("Battleship - Pirate Edition");
-        map = new Map(); // Changed from Mappa
-        playerShips = new LinkedList<int[]>();
-        this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        this.setResizable(false);
-        this.setSize(900, 672);
-        this.setFocusable(true);
-        this.requestFocusInWindow();
-        this.addKeyListener(this);
-        this.setIconImage(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/res/images/icon.png")));
-        Dimension dimension = Toolkit.getDefaultToolkit().getScreenSize();
-        int x = (int) ((dimension.getWidth() - this.getWidth()) / 2);
-        int y = (int) ((dimension.getHeight() - this.getHeight()) / 2);
-        this.setLocation(x, y);
-        UIJPanelBG container = new UIJPanelBG(
-                Toolkit.getDefaultToolkit().createImage(getClass().getResource("/res/images/wood.jpg")));
-        mapPanel = new UIMapPanel("manage");
-        choosePan = new UIManagePanel();
-        container.add(mapPanel);
-        container.add(choosePan);
-        mapPanel.setBounds(25, 25, 600, 620);
-        choosePan.setBounds(580, 25, 280, 800);
-        // Internal panel containing ships to place.
-        this.add(container);
-        for (int i = 0; i < mapPanel.buttons.length; i++) {
-            for (int j = 0; j < mapPanel.buttons[i].length; j++) {
-                mapPanel.buttons[i][j].addActionListener(this);
-                mapPanel.buttons[i][j].setActionCommand("" + i + " " + j);
-            }
-        }
-        choosePan.random.addActionListener(this);
-        choosePan.reset.addActionListener(this);
-        choosePan.playButton.addActionListener(this); // Renamed from gioca
-    }
+        super("Fleet Deployment");
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setSize(1000, 700); // Increased window width slightly
+        setLayout(new BorderLayout());
+        getContentPane().setBackground(COLOR_BG);
 
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        JButton source = (JButton) e.getSource();
-        String text = source.getText();
+        // --- 1. Init Logic ---
+        mapPlayer = new Map();
+
+        // --- 2. Center Panel (The Grid) ---
+        // We use a GridBagLayout to center the large grid in the available space
+        centerPanel = new JPanel(new GridBagLayout());
+        centerPanel.setBackground(COLOR_BG);
+
+        initGridPanel(); // Helper to setup the grid
+
+        add(centerPanel, BorderLayout.CENTER);
+
+        // --- 3. Right Sidebar (Controls) ---
+        JPanel rightPanel = new JPanel();
+        rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
+        rightPanel.setPreferredSize(new Dimension(300, 0));
+        rightPanel.setBackground(COLOR_SIDEBAR);
+        rightPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
+
+        // -- Header --
+        JLabel lblHeader = new JLabel("DEPLOY FLEET");
+        lblHeader.setFont(new Font("Arial", Font.BOLD, 24));
+        lblHeader.setForeground(COLOR_TEXT);
+        lblHeader.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        rightPanel.add(lblHeader);
+        rightPanel.add(Box.createVerticalStrut(30));
+
+        // -- Ship List Indicators --
+        shipLabels = new JLabel[SHIP_NAMES.length];
+        JPanel listPanel = new JPanel();
+        listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
+        listPanel.setOpaque(false);
+        listPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        for (int i = 0; i < SHIP_NAMES.length; i++) {
+            JLabel lbl = new JLabel(SHIP_NAMES[i] + " (" + SHIP_SIZES[i] + ")");
+            lbl.setFont(new Font("Arial", Font.PLAIN, 18));
+            lbl.setForeground(Color.GRAY);
+            lbl.setBorder(new EmptyBorder(5, 0, 5, 0));
+            lbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+            shipLabels[i] = lbl;
+            listPanel.add(lbl);
+        }
+        updateShipListVisuals();
+
+        rightPanel.add(listPanel);
+        rightPanel.add(Box.createVerticalStrut(40));
+
+        // -- Controls --
+        lblStatus = new JLabel("Orientation: HORIZONTAL");
+        lblStatus.setFont(new Font("Arial", Font.BOLD, 14));
+        lblStatus.setForeground(Color.LIGHT_GRAY);
+        lblStatus.setAlignmentX(Component.CENTER_ALIGNMENT);
+        rightPanel.add(lblStatus);
+        rightPanel.add(Box.createVerticalStrut(10));
+
+        // ROTATE
+        btnRotate = new JButton("ROTATE SHIP");
+        styleButton(btnRotate);
+        btnRotate.addActionListener(e -> toggleRotation());
+        rightPanel.add(btnRotate);
+        rightPanel.add(Box.createVerticalStrut(15));
+
+        // RANDOM (New Button)
+        btnRandom = new JButton("RANDOMIZE");
+        styleButton(btnRandom);
+        btnRandom.setBackground(new Color(70, 130, 180)); // Steel Blue
+        btnRandom.addActionListener(e -> randomizeShips());
+        rightPanel.add(btnRandom);
+        rightPanel.add(Box.createVerticalStrut(15));
+
         // RESET
-        if (text.equals("reset")) {
-            reset();
-        }
-        // RANDOM
-        else if (text.equals("random")) {
-            random();
-        }
-        // PLAY
-        else if (text.equals("play")) { // Renamed from gioca
-            play();
+        btnReset = new JButton("RESET BOARD");
+        styleButton(btnReset);
+        btnReset.setBackground(new Color(178, 34, 34)); // Red
+        btnReset.addActionListener(e -> resetPlacement());
+        rightPanel.add(btnReset);
 
-        } else {
-            if (finished) {
-                return;
-            }
-            StringTokenizer st = new StringTokenizer(source.getActionCommand(), " ");
-            int x = Integer.parseInt(st.nextToken());
-            int y = Integer.parseInt(st.nextToken());
-            int shipType = -1;
-            int size = 0;
-            int dir;
-            for (int i = 0; i < choosePan.ship.length; i++) {
-                if (choosePan.ship[i].isSelected())
-                    shipType = i;
-            }
-            switch (shipType) {
-                case 0: size = 4; break;
-                case 1: size = 3; break;
-                case 2: size = 2; break;
-                case 3: size = 1; break;
-            }
-            if (choosePan.direction[0].isSelected())// 0=horizontal 1=vertical
-                dir = 0;
-            else
-                dir = 1;
-            boolean placed = map.placeShip(x, y, size, dir); // Used placeShip
-            if (placed) {
-                // increment the number of ships placed
-                shipsPlaced++;
-                // decrement the counter for the placed ship
-                shipCounter[shipType]--;
-                choosePan.counterLabel[shipType].setText("" + shipCounter[shipType]);
-                // disable the ship if all have been placed and
-                // automatically select another ship to place
-                if (choosePan.counterLabel[shipType].getText().equals("0")) {
-                    choosePan.ship[shipType].setEnabled(false);
-                    for (int i = 0; i < choosePan.ship.length; i++) {
-                        if (choosePan.ship[i].isEnabled() && !choosePan.ship[i].isSelected()) {
-                            choosePan.ship[i].setSelected(true);
-                            break;
-                        }
-                    }
-                }
-                // check if we have placed all ships (10)
-                if (shipsPlaced == NUM_SHIPS) {
-                    finished = true;
-                    choosePan.direction[0].setEnabled(false);
-                    choosePan.direction[1].setEnabled(false);
-                    choosePan.playButton.setEnabled(true); // Renamed from gioca
-                }
-                int[] data = { x, y, size, dir };
-                playerShips.add(data);
-                mapPanel.drawShip(data); // Renamed from disegnaNave
-            }
-        }
-        this.requestFocusInWindow();
+        // -- Start Button (Bottom) --
+        rightPanel.add(Box.createVerticalGlue());
+
+        btnStart = new JButton("START GAME");
+        styleButton(btnStart);
+        btnStart.setBackground(Color.GRAY);
+        btnStart.setEnabled(false);
+        btnStart.setPreferredSize(new Dimension(260, 60));
+        btnStart.setFont(new Font("Arial", Font.BOLD, 20));
+
+        btnStart.addActionListener(e -> {
+            new BattleFrame(mapPlayer).setVisible(true);
+            this.dispose();
+        });
+
+        rightPanel.add(btnStart);
+
+        add(rightPanel, BorderLayout.EAST);
+        setLocationRelativeTo(null);
     }
 
-    private void random() {
-        if (shipsPlaced == NUM_SHIPS) {
-            reset();
+    private void initGridPanel() {
+        centerPanel.removeAll();
+
+        panelPlayer = new UIMapPanel(mapPlayer, true);
+
+        // IMPORTANT: Set a large preferred size to fill the left side
+        // The frame is 1000px wide, sidebar is 300px.
+        // 600x600 will fill the remaining space nicely with the layout margins.
+        panelPlayer.setPreferredSize(new Dimension(600, 600));
+
+        panelPlayer.setOnCellClicked(this::handleGridClick);
+
+        centerPanel.add(panelPlayer);
+        centerPanel.revalidate();
+        centerPanel.repaint();
+    }
+
+    // --- LOGIC METHODS ---
+
+    private void handleGridClick(Position p) {
+        if (currentShipIndex >= SHIP_NAMES.length) return;
+
+        int size = SHIP_SIZES[currentShipIndex];
+        boolean success = mapPlayer.placeShip(p.getX(), p.getY(), size, currentDirection);
+
+        if (success) {
+            currentShipIndex++;
+            panelPlayer.repaint();
+            updateShipListVisuals();
+            checkCompletion();
+        } else {
+            Toolkit.getDefaultToolkit().beep();
         }
+    }
+
+    private void randomizeShips() {
+        // 1. Create a clean map
+        mapPlayer = new Map();
+
+        // 2. Randomly place all ships defined in SHIP_SIZES
         Random r = new Random();
-        int[] data = new int[4];
-        for (int i = 0; i < shipCounter.length; i++) {
-            for (int j = 0; j < shipCounter[i]; j++) {
-                data = map.placeShipRandomly(r, shipCounter.length - i); // Renamed
-                playerShips.add(data);
-                mapPanel.drawShip(data); // Renamed
-            }
+        for (int size : SHIP_SIZES) {
+            // placeShipRandomly is a helper in Map.java
+            mapPlayer.placeShipRandomly(r, size);
         }
-        shipsPlaced = NUM_SHIPS;
-        finished = true;
-        choosePan.playButton.setEnabled(true); // Renamed
-        for (int i = 0; i < choosePan.ship.length; i++) {
-            choosePan.ship[i].setEnabled(false);
-        }
-        choosePan.direction[0].setEnabled(false);
-        choosePan.direction[1].setEnabled(false);
-        for (int i = 0; i < shipCounter.length; i++) {
-            shipCounter[i] = 0;
-            choosePan.counterLabel[i].setText("0");
-        }
-        choosePan.ship[0].setSelected(true);
 
+        // 3. Update State
+        currentShipIndex = SHIP_NAMES.length; // Mark all as done
+
+        // 4. Refresh UI
+        initGridPanel(); // Rebind the panel to the new map
+        updateShipListVisuals();
+        checkCompletion();
     }
 
-    private void reset() {
-        map = new Map(); // Renamed
-        playerShips = new LinkedList<int[]>();
-        for (int i = 0; i < Map.MAP_SIZE; i++) { // Renamed
-            for (int j = 0; j < Map.MAP_SIZE; j++) { // Renamed
-                mapPanel.buttons[i][j].setEnabled(true);
-            }
-        }
-        finished = false;
-        choosePan.playButton.setEnabled(false); // Renamed
-        for (int i = 0; i < choosePan.ship.length; i++) {
-            choosePan.ship[i].setEnabled(true);
-        }
-        choosePan.direction[0].setEnabled(true);
-        choosePan.direction[1].setEnabled(true);
-        for (int i = 0; i < shipCounter.length; i++) {
-            shipCounter[i] = i + 1;
-            choosePan.counterLabel[i].setText("" + (i + 1));
-        }
-        choosePan.ship[0].setSelected(true);
-        shipsPlaced = 0;
+    private void toggleRotation() {
+        currentDirection = (currentDirection == 0) ? 1 : 0;
+        lblStatus.setText("Orientation: " + (currentDirection == 0 ? "HORIZONTAL" : "VERTICAL"));
     }
 
-    private void play() {
-        BattleFrame battle = new BattleFrame(playerShips, map); // Renamed
-        battle.frame.setVisible(true);
-        this.setVisible(false);
+    private void resetPlacement() {
+        mapPlayer = new Map();
+        currentShipIndex = 0;
+        currentDirection = 0;
+
+        btnStart.setEnabled(false);
+        btnStart.setBackground(Color.GRAY);
+        btnRotate.setEnabled(true);
+        btnRandom.setEnabled(true);
+        lblStatus.setText("Orientation: HORIZONTAL");
+
+        initGridPanel(); // Refresh grid
+        updateShipListVisuals();
     }
 
-    @Override
-    public void keyPressed(KeyEvent arg0) {
-        char s = Character.toLowerCase(arg0.getKeyChar());
-        int key = arg0.getKeyCode();
-        if (s == 'g') {
-            random();
-            play();
-        } else {
-            if (s == 'r') {
-                random();
+    private void checkCompletion() {
+        if (currentShipIndex >= SHIP_NAMES.length) {
+            btnStart.setEnabled(true);
+            btnStart.setBackground(COLOR_SUCCESS);
+            btnRotate.setEnabled(false);
+            btnRandom.setEnabled(true); // Allow re-rolling if they want
+            lblStatus.setText("FLEET READY!");
+        }
+    }
+
+    private void updateShipListVisuals() {
+        for (int i = 0; i < SHIP_NAMES.length; i++) {
+            if (i < currentShipIndex) {
+                shipLabels[i].setForeground(COLOR_SUCCESS);
+                shipLabels[i].setFont(new Font("Arial", Font.PLAIN, 18));
+                shipLabels[i].setText("✔ " + SHIP_NAMES[i]);
+            } else if (i == currentShipIndex) {
+                shipLabels[i].setForeground(COLOR_ACCENT);
+                shipLabels[i].setFont(new Font("Arial", Font.BOLD, 20));
+                shipLabels[i].setText("➤ " + SHIP_NAMES[i] + " (" + SHIP_SIZES[i] + ")");
             } else {
-                if (key == KeyEvent.VK_DELETE || key == KeyEvent.VK_BACK_SPACE) {
-                    reset();
-                } else {
-                    if (key == KeyEvent.VK_ESCAPE) {
-                        System.exit(0);
-                    }
-                }
-                if (key == KeyEvent.VK_ENTER) {
-                    if (finished) {
-                        play();
-                    }
-                }
+                shipLabels[i].setForeground(Color.GRAY);
+                shipLabels[i].setFont(new Font("Arial", Font.PLAIN, 18));
+                shipLabels[i].setText(SHIP_NAMES[i] + " (" + SHIP_SIZES[i] + ")");
             }
         }
     }
 
-    @Override
-    public void keyReleased(KeyEvent arg0) {}
-
-    @Override
-    public void keyTyped(KeyEvent arg0) {}
-
+    private void styleButton(JButton btn) {
+        btn.setBackground(Color.DARK_GRAY);
+        btn.setForeground(Color.WHITE);
+        btn.setFocusPainted(false);
+        btn.setFont(new Font("Arial", Font.BOLD, 14));
+        btn.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btn.setMaximumSize(new Dimension(260, 45));
+    }
 }
