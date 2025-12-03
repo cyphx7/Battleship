@@ -1,17 +1,17 @@
 package game;
 
-import java.util.LinkedList;
 import java.util.Random;
+// Removed: import java.util.LinkedList;
 
 public class Map {
     public static final int MAP_SIZE = 10;
     public static final char EMPTY = '0', SHIP = 'X', WATER = 'A', HIT = 'C';
 
     private char[][] mapGrid;
-    private LinkedList<Ship> shipList;
+    private MyLinkedList<Ship> shipList; // Changed to MyLinkedList
 
     public Map() {
-        shipList = new LinkedList<Ship>();
+        shipList = new MyLinkedList<>(); // Changed
         mapGrid = new char[MAP_SIZE][MAP_SIZE];
         for (int i = 0; i < MAP_SIZE; i++)
             for (int j = 0; j < MAP_SIZE; j++)
@@ -26,7 +26,7 @@ public class Map {
         clear();
         Random r = new Random();
 
-        // Standard Battleship Fleet: Carrier(5), Battleship(4), Cruiser(3), Sub(3), Destroyer(2)
+        // Standard Battleship Fleet
         placeShipRandomly(r, 5);
         placeShipRandomly(r, 4);
         placeShipRandomly(r, 3);
@@ -42,7 +42,6 @@ public class Map {
     }
 
     public boolean placeShip(int x, int y, int size, int direction) {
-        // Bounds Check
         if (direction == 1 && x + size > MAP_SIZE) return false;
         if (direction == 0 && y + size > MAP_SIZE) return false;
 
@@ -52,14 +51,12 @@ public class Map {
 
         if (!placed) return false;
 
-        // Add Ship Object
         if (direction == 0) {
             shipList.add(new Ship(x, y, x, y + size - 1));
         } else {
             shipList.add(new Ship(x, y, x + size - 1, y));
         }
 
-        // Mark Grid
         for (int i = 0; i < size; i++) {
             if (direction == 0) mapGrid[x][y + i] = SHIP;
             else mapGrid[x + i][y] = SHIP;
@@ -71,10 +68,9 @@ public class Map {
         boolean placed;
         int[] data = new int[4];
         int direction, row, col;
-        // Attempt to place until valid spot found
         do {
             placed = true;
-            direction = random.nextInt(2); // 0=Horizontal, 1=Vertical
+            direction = random.nextInt(2);
             if (direction == 0) {
                 col = random.nextInt(MAP_SIZE - size + 1);
                 row = random.nextInt(MAP_SIZE);
@@ -92,35 +88,30 @@ public class Map {
         return data;
     }
 
-    // --- UPDATED: Strict Adjacency Checks (No Touching) ---
-
+    // Strict Adjacency Checks
     public boolean checkVertical(int row, int col, int size) {
-        // Define the "Bounding Box" to check (Ship + 1 cell padding on all sides)
         int rStart = Math.max(0, row - 1);
-        int rEnd = Math.min(MAP_SIZE - 1, row + size); // row+size is the cell directly below the ship
+        int rEnd = Math.min(MAP_SIZE - 1, row + size);
         int cStart = Math.max(0, col - 1);
         int cEnd = Math.min(MAP_SIZE - 1, col + 1);
 
-        // Scan the box area
         for (int r = rStart; r <= rEnd; r++) {
             for (int c = cStart; c <= cEnd; c++) {
-                if (mapGrid[r][c] == SHIP) return false; // Fail if ANY ship part is near
+                if (mapGrid[r][c] == SHIP) return false;
             }
         }
         return true;
     }
 
     public boolean checkHorizontal(int row, int col, int size) {
-        // Define the "Bounding Box" to check
         int rStart = Math.max(0, row - 1);
         int rEnd = Math.min(MAP_SIZE - 1, row + 1);
         int cStart = Math.max(0, col - 1);
-        int cEnd = Math.min(MAP_SIZE - 1, col + size); // col+size is the cell directly right of the ship
+        int cEnd = Math.min(MAP_SIZE - 1, col + size);
 
-        // Scan the box area
         for (int r = rStart; r <= rEnd; r++) {
             for (int c = cStart; c <= cEnd; c++) {
-                if (mapGrid[r][c] == SHIP) return false; // Fail if ANY ship part is near
+                if (mapGrid[r][c] == SHIP) return false;
             }
         }
         return true;
@@ -143,6 +134,8 @@ public class Map {
         int row = p.getX();
         int col = p.getY();
         Ship ship = null;
+
+        // This loop works because MyLinkedList implements Iterable
         for (Ship s : shipList) {
             if (s.contains(row, col)) {
                 ship = s;
