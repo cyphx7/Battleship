@@ -21,7 +21,7 @@ public class ShipPlacementFrame extends JFrame {
     private JButton btnRotate, btnRandom, btnReset, btnStart;
     private JLabel[] shipLabels;
 
-    private int currentDirection = 0;
+    private int currentDirection = 0; // 0 = Horizontal, 1 = Vertical
     private int currentShipIndex = 0;
 
     private final String[] SHIP_NAMES = {"Carrier", "Battleship", "Cruiser", "Submarine", "Destroyer"};
@@ -43,11 +43,11 @@ public class ShipPlacementFrame extends JFrame {
 
         mapPlayer = new Map();
 
-        // --- CENTER PANEL ---
+        // --- CENTER PANEL (Grid) ---
         centerPanel = new JPanel(new GridBagLayout());
         centerPanel.setBackground(COLOR_BG);
 
-        // Initialize Grid ONCE
+        // We pass 'true' to indicate this is the placement phase (grid handles clicks)
         panelPlayer = new UIMapPanel(mapPlayer, true);
         panelPlayer.setOnCellClicked(this::handleGridClick);
         centerPanel.add(panelPlayer);
@@ -56,31 +56,49 @@ public class ShipPlacementFrame extends JFrame {
 
         // --- RIGHT SIDEBAR ---
         JPanel rightPanel = new JPanel();
-        rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
-        // Wide sidebar to accommodate massive buttons
-        rightPanel.setPreferredSize(new Dimension(550, 0));
+        rightPanel.setLayout(new GridBagLayout()); // Locked layout structure
+        rightPanel.setPreferredSize(new Dimension(500, 0));
         rightPanel.setBackground(COLOR_SIDEBAR);
         rightPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
 
-        // Header
-        JLabel lblHeader = new JLabel("DEPLOY FLEET");
-        lblHeader.setFont(new Font("Arial", Font.BOLD, 30));
-        lblHeader.setForeground(COLOR_TEXT);
-        lblHeader.setAlignmentX(Component.CENTER_ALIGNMENT);
-        rightPanel.add(lblHeader);
-        rightPanel.add(Box.createVerticalStrut(30));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.CENTER;
+        gbc.weightx = 1.0;
 
-        // Ship List
-        shipLabels = new JLabel[SHIP_NAMES.length];
+        // 1. HEADER (Top)
+        gbc.gridy = 0;
+        gbc.weighty = 0.0;
+        gbc.insets = new Insets(0, 0, 10, 0);
+
+        JLabel lblHeader = new JLabel();
+        lblHeader.setHorizontalAlignment(SwingConstants.CENTER);
+        ImageIcon headerIcon = loadIcon("/res/images/deployfleet.png", 460, 250);
+        if (headerIcon != null) {
+            lblHeader.setIcon(headerIcon);
+        } else {
+            lblHeader.setText("DEPLOY FLEET");
+            lblHeader.setFont(new Font("Arial", Font.BOLD, 40));
+            lblHeader.setForeground(COLOR_TEXT);
+        }
+        rightPanel.add(lblHeader, gbc);
+
+        // 2. SHIP LIST
+        gbc.gridy = 1;
+        gbc.weighty = 0.0;
+        gbc.insets = new Insets(0, 0, 20, 0);
+
         JPanel listPanel = new JPanel();
         listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
         listPanel.setOpaque(false);
-        listPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
+        shipLabels = new JLabel[SHIP_NAMES.length];
         for (int i = 0; i < SHIP_NAMES.length; i++) {
             JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 5));
             row.setOpaque(false);
-            row.setMaximumSize(new Dimension(500, 60));
+            row.setMaximumSize(new Dimension(450, 60));
+            row.setAlignmentX(Component.CENTER_ALIGNMENT);
 
             JLabel lblText = new JLabel(SHIP_NAMES[i] + " (" + SHIP_SIZES[i] + ")");
             lblText.setFont(new Font("Arial", Font.PLAIN, 18));
@@ -96,88 +114,93 @@ public class ShipPlacementFrame extends JFrame {
             listPanel.add(row);
         }
         updateShipListVisuals();
-        rightPanel.add(listPanel);
-        rightPanel.add(Box.createVerticalStrut(40));
+        rightPanel.add(listPanel, gbc);
 
-        // Status
+        // 3. STATUS & ROTATE
+        gbc.gridy = 2;
+        gbc.insets = new Insets(0, 0, 15, 0);
+
         lblStatus = new JLabel("Orientation: HORIZONTAL");
         lblStatus.setFont(new Font("Arial", Font.BOLD, 18));
         lblStatus.setForeground(Color.LIGHT_GRAY);
-        lblStatus.setAlignmentX(Component.CENTER_ALIGNMENT);
-        rightPanel.add(lblStatus);
-        rightPanel.add(Box.createVerticalStrut(20));
+        lblStatus.setHorizontalAlignment(SwingConstants.CENTER);
+        rightPanel.add(lblStatus, gbc);
 
-        // Controls
+        gbc.gridy = 3;
+        gbc.insets = new Insets(0, 0, 15, 0);
         btnRotate = new JButton("ROTATE SHIP");
         styleButton(btnRotate);
         btnRotate.addActionListener(e -> toggleRotation());
-        rightPanel.add(btnRotate);
-        rightPanel.add(Box.createVerticalStrut(20));
+        rightPanel.add(btnRotate, gbc);
 
-        btnRandom = new JButton("RANDOMIZE");
-        styleButton(btnRandom);
-        btnRandom.setBackground(new Color(70, 130, 180));
+        // 4. RANDOM BUTTON
+        gbc.gridy = 4;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        btnRandom = createGraphicButton("RANDOMIZE", "/res/images/random.png", new Color(70, 130, 180));
         btnRandom.addActionListener(e -> randomizeShips());
-        rightPanel.add(btnRandom);
+        rightPanel.add(btnRandom, gbc);
 
-        // Push everything to bottom
-        rightPanel.add(Box.createVerticalGlue());
+        // 5. FILLER (Pushes bottom buttons down)
+        gbc.gridy = 5;
+        gbc.weighty = 1.0;
+        gbc.fill = GridBagConstraints.BOTH;
+        rightPanel.add(Box.createGlue(), gbc);
 
-        // --- BOTTOM BUTTONS (Reset & Start) ---
-        // GridLayout(1, 2) forces them to be equal size and fill the width
+        // 6. BOTTOM BUTTONS (Reset & Start)
+        gbc.gridy = 6;
+        gbc.weighty = 0.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.PAGE_END;
+        gbc.insets = new Insets(10, 0, 0, 0);
+
         JPanel bottomPanel = new JPanel(new GridLayout(1, 2, 20, 0));
         bottomPanel.setOpaque(false);
-        bottomPanel.setMaximumSize(new Dimension(550, 120)); // Restrict max height
-        bottomPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        bottomPanel.setPreferredSize(new Dimension(500, 110)); // Slightly taller for better fit
 
-        // 1. Reset Button
-        btnReset = createMassiveButton("RESET", "/res/images/reset.png", new Color(178, 34, 34));
+        // Reset
+        btnReset = createGraphicButton("RESET", "/res/images/reset.png", new Color(178, 34, 34));
         btnReset.addActionListener(e -> resetPlacement());
         bottomPanel.add(btnReset);
 
-        // 2. Start Button
-        btnStart = createMassiveButton("START", "/res/images/play.png", new Color(50, 205, 50));
-        btnStart.setEnabled(false); // Initially disabled
+        // Start
+        btnStart = createGraphicButton("START", "/res/images/play.png", new Color(50, 205, 50));
+        btnStart.setEnabled(false);
+
+        // --- FIX: Add Action Listener for Start Button ---
+        btnStart.addActionListener(e -> startGame());
+
         bottomPanel.add(btnStart);
 
-        rightPanel.add(bottomPanel);
+        rightPanel.add(bottomPanel, gbc);
+
         add(rightPanel, BorderLayout.EAST);
         setLocationRelativeTo(null);
     }
 
-    /**
-     * Creates a MASSIVE button (250x100) with robust image handling
-     */
-    private JButton createMassiveButton(String text, String imagePath, Color fallbackColor) {
+    private JButton createGraphicButton(String text, String imagePath, Color fallbackColor) {
         JButton btn = new JButton();
-
-        // --- BUTTON SIZE ---
-        // These dimensions are huge and will fill the GridLayout cells
-        int w = 250;
-        int h = 200;
-        btn.setPreferredSize(new Dimension(w, h));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        int w = 250;
+        int h = 150;
+        btn.setPreferredSize(new Dimension(w, h));
+        btn.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         ImageIcon icon = loadIcon(imagePath, w, h);
 
         if (icon != null) {
-            // IMAGE MODE
             btn.setIcon(icon);
             btn.setText("");
             btn.setOpaque(false);
             btn.setContentAreaFilled(false);
             btn.setBorderPainted(false);
-
-            // --- CRITICAL FIX FOR MISSING PLAY BUTTON ---
-            // Create a semi-transparent version of the icon for the "Disabled" state.
-            // This ensures it is VISIBLE (ghosted) instead of disappearing.
-            btn.setDisabledIcon(createTransparentIcon(icon, 0.5f));
+            // Visible Ghost Icon for Disabled State
+            btn.setDisabledIcon(createGhostIcon(icon));
         } else {
-            // FALLBACK TEXT MODE
             btn.setText(text);
             btn.setBackground(fallbackColor);
             btn.setForeground(Color.WHITE);
-            btn.setFont(new Font("Arial", Font.BOLD, 24));
+            btn.setFont(new Font("Arial", Font.BOLD, 22));
             btn.setFocusPainted(false);
             btn.setOpaque(true);
             btn.setContentAreaFilled(true);
@@ -191,7 +214,6 @@ public class ShipPlacementFrame extends JFrame {
         if (url == null) return null;
         try {
             BufferedImage img = ImageIO.read(url);
-            // High quality scaling
             Image scaled = img.getScaledInstance(width, height, Image.SCALE_SMOOTH);
             return new ImageIcon(scaled);
         } catch (Exception e) {
@@ -199,19 +221,13 @@ public class ShipPlacementFrame extends JFrame {
         }
     }
 
-    /**
-     * Manually creates a transparent version of an image.
-     * This is much more reliable than GrayFilter for disabled buttons.
-     */
-    private ImageIcon createTransparentIcon(ImageIcon original, float alpha) {
+    private ImageIcon createGhostIcon(ImageIcon original) {
         BufferedImage img = new BufferedImage(
                 original.getIconWidth(), original.getIconHeight(), BufferedImage.TYPE_INT_ARGB);
-
         Graphics2D g2 = img.createGraphics();
-        g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+        g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
         original.paintIcon(null, g2, 0, 0);
         g2.dispose();
-
         return new ImageIcon(img);
     }
 
@@ -236,29 +252,50 @@ public class ShipPlacementFrame extends JFrame {
     }
 
     private void randomizeShips() {
+        // 1. Create a fresh map
         mapPlayer = new Map();
         Random r = new Random();
+
+        // 2. Logic to place all ships
         for (int i = 0; i < SHIP_SIZES.length; i++) {
             int size = SHIP_SIZES[i];
             mapPlayer.placeShipRandomly(r, size);
+            // Ensure images are assigned
             for (Ship s : mapPlayer.getShipList()) {
                 if (s.getImageName() == null) s.setImageName(SHIP_IMAGES[i]);
             }
         }
+
+        // 3. Mark all as done
         currentShipIndex = SHIP_NAMES.length;
-        panelPlayer.updateMap(mapPlayer);
+
+        // 4. Update UI
+        panelPlayer.updateMap(mapPlayer); // Critical: Update the panel's reference!
         updateShipListVisuals();
         checkCompletion();
     }
 
     private void resetPlacement() {
+        // 1. Clear map
         mapPlayer = new Map();
         currentShipIndex = 0;
         currentDirection = 0;
-        btnStart.setEnabled(false); // Will now show the transparent icon
+
+        // 2. Reset Buttons
+        btnStart.setEnabled(false);
+        btnRotate.setEnabled(true); // FIX: Re-enable Rotate button!
+
         lblStatus.setText("Orientation: HORIZONTAL");
+
+        // 3. Update UI
         panelPlayer.updateMap(mapPlayer);
         updateShipListVisuals();
+    }
+
+    private void startGame() {
+        // Close this window and open BattleFrame
+        new BattleFrame(mapPlayer).setVisible(true);
+        this.dispose();
     }
 
     private void toggleRotation() {
@@ -268,9 +305,8 @@ public class ShipPlacementFrame extends JFrame {
 
     private void checkCompletion() {
         if (currentShipIndex >= SHIP_NAMES.length) {
-            btnStart.setEnabled(true); // Icon becomes fully opaque
-            btnRotate.setEnabled(false);
-            btnRandom.setEnabled(true);
+            btnStart.setEnabled(true);
+            btnRotate.setEnabled(false); // Disable rotate when done
             lblStatus.setText("FLEET READY!");
         }
     }
@@ -294,8 +330,9 @@ public class ShipPlacementFrame extends JFrame {
         btn.setBackground(Color.DARK_GRAY);
         btn.setForeground(Color.WHITE);
         btn.setFocusPainted(false);
-        btn.setFont(new Font("Arial", Font.BOLD, 16));
-        btn.setAlignmentX(Component.CENTER_ALIGNMENT);
-        btn.setMaximumSize(new Dimension(300, 60));
+        btn.setFont(new Font("Arial", Font.BOLD, 18));
+        int w = 220;
+        int h = 60;
+        btn.setPreferredSize(new Dimension(w, h));
     }
 }
