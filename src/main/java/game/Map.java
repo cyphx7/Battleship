@@ -21,16 +21,40 @@ public class Map {
         return mapGrid[row][col];
     }
 
+    // --- NEW: Methods needed for UI ---
+    public MyLinkedList<Ship> getShipList() {
+        return shipList;
+    }
+
+    public Ship getShipAt(Position p) {
+        for (int i = 0; i < shipList.size(); i++) {
+            Ship s = shipList.get(i);
+            if (s.contains(p.getX(), p.getY())) {
+                return s;
+            }
+        }
+        return null;
+    }
+    // ----------------------------------
+
     public void fillRandomly() {
         clear();
         Random r = new Random();
+        // Place ships and immediately assign their images for the AI/Enemy map
+        Ship s;
+        s = placeShipGet(r, 5); if(s!=null) s.setImageName("ship1.png"); // Carrier/Ship1
+        s = placeShipGet(r, 4); if(s!=null) s.setImageName("ship2.png"); // Battleship/Ship2
+        s = placeShipGet(r, 3); if(s!=null) s.setImageName("ship3.png");
+        s = placeShipGet(r, 3); if(s!=null) s.setImageName("ship 3.png");
+        s = placeShipGet(r, 2); if(s!=null) s.setImageName("ship4.png");
+    }
 
-        // Standard Battleship Fleet
-        placeShipRandomly(r, 5); // Atakebune (Carrier)
-        placeShipRandomly(r, 4);
-        placeShipRandomly(r, 3);
-        placeShipRandomly(r, 3);
-        placeShipRandomly(r, 2); // Kobaya (Destroyer)
+    private Ship placeShipGet(Random r, int size) {
+        placeShipRandomly(r, size);
+        if (shipList.size() > 0) {
+            return shipList.get(shipList.size() - 1);
+        }
+        return null;
     }
 
     private void clear() {
@@ -87,7 +111,6 @@ public class Map {
         return data;
     }
 
-    // Strict Adjacency Checks
     public boolean checkVertical(int row, int col, int size) {
         int rStart = Math.max(0, row - 1);
         int rEnd = Math.min(MAP_SIZE - 1, row + size);
@@ -119,7 +142,7 @@ public class Map {
     public boolean fireAt(Position p) {
         int row = p.getX();
         int col = p.getY();
-        if (row < 0 || row >= MAP_SIZE || col < 0 || col >= MAP_SIZE) return false; // Bounds check
+        if (row < 0 || row >= MAP_SIZE || col < 0 || col >= MAP_SIZE) return false;
 
         if (mapGrid[row][col] == SHIP) {
             mapGrid[row][col] = HIT;
@@ -136,7 +159,8 @@ public class Map {
         int col = p.getY();
         Ship ship = null;
 
-        for (Ship s : shipList) {
+        for (int i = 0; i < shipList.size(); i++) {
+            Ship s = shipList.get(i);
             if (s.contains(row, col)) {
                 ship = s;
                 break;
@@ -153,10 +177,9 @@ public class Map {
         return ship;
     }
 
-    // --- NEW METHOD FOR ABILITIES ---
     public boolean isShipAlive(int size) {
-        for (Ship s : shipList) {
-            // Calculate size based on coordinates
+        for (int i = 0; i < shipList.size(); i++) {
+            Ship s = shipList.get(i);
             int shipSize = Math.max(Math.abs(s.getEndX() - s.getStartX()), Math.abs(s.getEndY() - s.getStartY())) + 1;
             if (shipSize == size) return true;
         }
