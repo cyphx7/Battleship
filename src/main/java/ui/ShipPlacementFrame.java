@@ -174,7 +174,12 @@ public class ShipPlacementFrame extends JFrame {
             updateShipListVisuals();
             checkCompletion();
         } else {
+            // --- UI WARNING ADDED HERE ---
             Toolkit.getDefaultToolkit().beep();
+            JOptionPane.showMessageDialog(this,
+                    "Invalid Placement!\nShips cannot overlap or go off the map.",
+                    "Placement Error",
+                    JOptionPane.WARNING_MESSAGE);
         }
     }
 

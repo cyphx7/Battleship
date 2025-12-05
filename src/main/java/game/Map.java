@@ -1,17 +1,16 @@
 package game;
 
 import java.util.Random;
-// Removed: import java.util.LinkedList;
 
 public class Map {
     public static final int MAP_SIZE = 10;
     public static final char EMPTY = '0', SHIP = 'X', WATER = 'A', HIT = 'C';
 
     private char[][] mapGrid;
-    private MyLinkedList<Ship> shipList; // Changed to MyLinkedList
+    private MyLinkedList<Ship> shipList;
 
     public Map() {
-        shipList = new MyLinkedList<>(); // Changed
+        shipList = new MyLinkedList<>();
         mapGrid = new char[MAP_SIZE][MAP_SIZE];
         for (int i = 0; i < MAP_SIZE; i++)
             for (int j = 0; j < MAP_SIZE; j++)
@@ -27,11 +26,11 @@ public class Map {
         Random r = new Random();
 
         // Standard Battleship Fleet
-        placeShipRandomly(r, 5);
+        placeShipRandomly(r, 5); // Atakebune (Carrier)
         placeShipRandomly(r, 4);
         placeShipRandomly(r, 3);
         placeShipRandomly(r, 3);
-        placeShipRandomly(r, 2);
+        placeShipRandomly(r, 2); // Kobaya (Destroyer)
     }
 
     private void clear() {
@@ -120,6 +119,8 @@ public class Map {
     public boolean fireAt(Position p) {
         int row = p.getX();
         int col = p.getY();
+        if (row < 0 || row >= MAP_SIZE || col < 0 || col >= MAP_SIZE) return false; // Bounds check
+
         if (mapGrid[row][col] == SHIP) {
             mapGrid[row][col] = HIT;
             checkSunk(p);
@@ -135,7 +136,6 @@ public class Map {
         int col = p.getY();
         Ship ship = null;
 
-        // This loop works because MyLinkedList implements Iterable
         for (Ship s : shipList) {
             if (s.contains(row, col)) {
                 ship = s;
@@ -151,6 +151,16 @@ public class Map {
         }
         shipList.remove(ship);
         return ship;
+    }
+
+    // --- NEW METHOD FOR ABILITIES ---
+    public boolean isShipAlive(int size) {
+        for (Ship s : shipList) {
+            // Calculate size based on coordinates
+            int shipSize = Math.max(Math.abs(s.getEndX() - s.getStartX()), Math.abs(s.getEndY() - s.getStartY())) + 1;
+            if (shipSize == size) return true;
+        }
+        return false;
     }
 
     public void setWater(Position p) { mapGrid[p.getX()][p.getY()] = WATER; }

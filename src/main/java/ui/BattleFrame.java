@@ -14,13 +14,25 @@ public class BattleFrame extends JFrame {
     private Map computerMap;
     private Computer computerAI;
 
+    // --- SOLVER ADDITIONS ---
+    private Computer solverAI;
+    private Timer solverTimer;
+    // ------------------------
+
     private UIMapPanel pnlPlayer;
     private UIMapPanel pnlComputer;
     private JTextArea logArea;
 
     // Right Panel Components
     private JPanel rightPanel;
-    private JPanel turnContainer; // The container for the stacking effect
+    private JPanel turnContainer;
+
+    // Ability Buttons
+    private JButton btnScout;
+    private JButton btnTsunami;
+
+    // Ability Logic
+    private int activeAbility = 0; // 0 = None, 1 = Scout, 2 = Tsunami
 
     // Dual Turn Panels
     private JPanel pnlYourTurn;
@@ -32,13 +44,12 @@ public class BattleFrame extends JFrame {
     private boolean gameOver = false;
 
     // --- COLORS ---
-    private final Color COLOR_PLAYER = new Color(34, 139, 34); // Bright Green
-    private final Color COLOR_PLAYER_DIM = new Color(20, 80, 20); // Dark Green
+    private final Color COLOR_PLAYER = new Color(34, 139, 34);
+    private final Color COLOR_PLAYER_DIM = new Color(20, 80, 20);
 
-    private final Color COLOR_ENEMY = new Color(178, 34, 34);  // Bright Red
-    private final Color COLOR_ENEMY_DIM = new Color(80, 20, 20);  // Dark Red
+    private final Color COLOR_ENEMY = new Color(178, 34, 34);
+    private final Color COLOR_ENEMY_DIM = new Color(80, 20, 20);
 
-    // --- DIMENSIONS ---
     private final Dimension DIM_ACTIVE = new Dimension(300, 100);
     private final Dimension DIM_INACTIVE = new Dimension(300, 50);
 
@@ -49,7 +60,11 @@ public class BattleFrame extends JFrame {
         // 1. Initialize Enemy Data
         computerMap = new Map();
         computerMap.fillRandomly();
-        computerAI = new Computer(playerMap); // AI targets you
+        computerAI = new Computer(playerMap);
+
+        // --- SOLVER INIT ---
+        solverAI = new Computer(computerMap);
+        // -------------------
 
         initUI();
     }
@@ -76,7 +91,13 @@ public class BattleFrame extends JFrame {
         // CLICK EVENT
         pnlComputer.setOnCellClicked(pos -> {
             if (playerTurn && !gameOver) {
-                executePlayerTurn(pos);
+                if (activeAbility == 0) {
+                    executePlayerTurn(pos);
+                } else if (activeAbility == 1) {
+                    executeScout(pos);
+                } else if (activeAbility == 2) {
+                    executeTsunami(pos);
+                }
             }
         });
 
@@ -128,26 +149,55 @@ public class BattleFrame extends JFrame {
         lblAbilities.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         rightPanel.add(lblAbilities);
-        rightPanel.add(Box.createVerticalStrut(15));
+        rightPanel.add(Box.createVerticalStrut(10));
 
         // -- 3. Ability Buttons --
         JPanel abilityGrid = new JPanel(new GridLayout(1, 2, 15, 0));
         abilityGrid.setOpaque(false);
-        abilityGrid.setMaximumSize(new Dimension(300, 80));
-        abilityGrid.setPreferredSize(new Dimension(300, 80));
+        abilityGrid.setPreferredSize(new Dimension(280, 60));
+        abilityGrid.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JButton btnAbility1 = new JButton("RADAR");
-        JButton btnAbility2 = new JButton("AIRSTRIKE");
-        styleButton(btnAbility1);
-        styleButton(btnAbility2);
+        btnScout = new JButton("SCOUT");
+        btnTsunami = new JButton("TSUNAMI");
 
-        abilityGrid.add(btnAbility1);
-        abilityGrid.add(btnAbility2);
+        styleButton(btnScout);
+        styleButton(btnTsunami);
+
+        // Setup Actions
+        btnScout.addActionListener(e -> {
+            activeAbility = 1;
+            log(">> SCOUT PLANE READY. Select a target zone.");
+            btnScout.setBackground(Color.ORANGE);
+            btnTsunami.setBackground(Color.DARK_GRAY);
+        });
+
+        btnTsunami.addActionListener(e -> {
+            activeAbility = 2;
+            log(">> TSUNAMI STRIKE READY. Select a target zone.");
+            btnTsunami.setBackground(Color.RED);
+            btnScout.setBackground(Color.DARK_GRAY);
+        });
+
+        abilityGrid.add(btnScout);
+        abilityGrid.add(btnTsunami);
 
         rightPanel.add(abilityGrid);
         rightPanel.add(Box.createVerticalStrut(30));
 
-        // -- 4. Fleet Status Banner --
+        // -- 4. AUTO PILOT BUTTON --
+        JButton btnSolve = new JButton("AUTO-PILOT");
+        styleButton(btnSolve);
+        btnSolve.setBackground(new Color(0, 102, 204)); // Tactical Blue
+        btnSolve.setForeground(Color.WHITE);
+        btnSolve.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnSolve.setMaximumSize(new Dimension(280, 50));
+
+        btnSolve.addActionListener(e -> runSolver());
+
+        rightPanel.add(btnSolve);
+        rightPanel.add(Box.createVerticalStrut(30));
+
+        // -- 5. Fleet Status Banner --
         JPanel fleetPanel = new JPanel(new BorderLayout());
         fleetPanel.setBackground(Color.LIGHT_GRAY);
         fleetPanel.setBorder(BorderFactory.createTitledBorder("FLEET STATUS"));
@@ -162,6 +212,7 @@ public class BattleFrame extends JFrame {
 
         add(rightPanel, BorderLayout.EAST);
 
+        checkAbilityAvailability(); // Initial check
         log("Battle stations ready. Select a target on the Enemy Sector.");
     }
 
@@ -177,6 +228,93 @@ public class BattleFrame extends JFrame {
         pnlEnemyTurn.add(lblEnemyTurn, BorderLayout.CENTER);
     }
 
+    // --- SPECIAL ABILITY LOGIC ---
+
+    private void checkAbilityAvailability() {
+        // Scout requires Kobaya (Size 2)
+        if (playerMap.isShipAlive(2)) {
+            btnScout.setEnabled(true);
+        } else {
+            btnScout.setEnabled(false);
+            btnScout.setText("SCOUT (LOST)");
+            btnScout.setBackground(Color.DARK_GRAY);
+        }
+
+        // Tsunami requires Atakebune (Size 5)
+        if (playerMap.isShipAlive(5)) {
+            btnTsunami.setEnabled(true);
+        } else {
+            btnTsunami.setEnabled(false);
+            btnTsunami.setText("TSUNAMI (LOST)");
+            btnTsunami.setBackground(Color.DARK_GRAY);
+        }
+    }
+
+    private void executeScout(Position center) {
+        log(">> SCOUTING SECTOR " + (char)('A' + center.getY()) + (center.getX() + 1) + "...");
+
+        boolean found = false;
+        // Check 3x3 Area
+        for (int r = center.getX() - 1; r <= center.getX() + 1; r++) {
+            for (int c = center.getY() - 1; c <= center.getY() + 1; c++) {
+                if (r >= 0 && r < Map.MAP_SIZE && c >= 0 && c < Map.MAP_SIZE) {
+                    if (computerMap.getGridAt(r, c) == Map.SHIP) {
+                        found = true;
+                    }
+                }
+            }
+        }
+
+        if (found) {
+            log(">> REPORT: ENEMY ACTIVITY DETECTED IN THIS SECTOR!");
+            JOptionPane.showMessageDialog(this, "Enemy Detected in the scanned area!", "Scout Report", JOptionPane.WARNING_MESSAGE);
+        } else {
+            log(">> REPORT: Sector appears clear.");
+        }
+
+        activeAbility = 0; // Reset
+        styleButton(btnScout); // Reset colors
+        styleButton(btnTsunami);
+
+        endPlayerTurn();
+    }
+
+    private void executeTsunami(Position center) {
+        log(">> CALLING TSUNAMI STRIKE ON " + (char)('A' + center.getY()) + (center.getX() + 1) + "...");
+
+        boolean anyHit = false;
+        // Hit 3x3 Area
+        for (int r = center.getX() - 1; r <= center.getX() + 1; r++) {
+            for (int c = center.getY() - 1; c <= center.getY() + 1; c++) {
+                if (r >= 0 && r < Map.MAP_SIZE && c >= 0 && c < Map.MAP_SIZE) {
+                    // Fire at this specific spot
+                    boolean hit = computerMap.fireAt(new Position(r, c));
+                    if (hit) anyHit = true;
+                }
+            }
+        }
+
+        pnlComputer.repaint();
+
+        if (anyHit) {
+            log(">> TSUNAMI CONFIRMED HITS! DEVASTATING!");
+            if (!computerMap.hasShips()) {
+                gameOver = true;
+                log("ENEMY FLEET ELIMINATED. VICTORY!");
+                JOptionPane.showMessageDialog(this, "VICTORY!");
+                return;
+            }
+        } else {
+            log(">> Tsunami hit nothing but water.");
+        }
+
+        activeAbility = 0; // Reset
+        styleButton(btnScout);
+        styleButton(btnTsunami);
+
+        endPlayerTurn();
+    }
+
     // --- Game Logic Methods ---
 
     private void executePlayerTurn(Position target) {
@@ -185,7 +323,7 @@ public class BattleFrame extends JFrame {
         }
 
         boolean hit = computerMap.fireAt(target);
-        pnlComputer.repaint(); // Force paint request immediately
+        pnlComputer.repaint();
 
         log("Firing at " + (char)('A' + target.getY()) + (target.getX() + 1) + "...");
 
@@ -195,17 +333,21 @@ public class BattleFrame extends JFrame {
                 gameOver = true;
                 log("ENEMY FLEET ELIMINATED. VICTORY!");
 
-                // --- FIX: Delay the popup so the red tile paints first ---
                 Timer t = new Timer(100, e -> {
                     JOptionPane.showMessageDialog(this, "VICTORY!");
                 });
                 t.setRepeats(false);
                 t.start();
+                return;
             }
         } else {
             log(">> Miss.");
         }
 
+        endPlayerTurn();
+    }
+
+    private void endPlayerTurn() {
         if (!gameOver) {
             playerTurn = false;
             updateTurnIndicators(false);
@@ -221,7 +363,7 @@ public class BattleFrame extends JFrame {
         Position p = report.getP();
         log("Enemy attacking " + (char)('A' + p.getY()) + (p.getX() + 1));
 
-        pnlPlayer.repaint(); // Force paint request
+        pnlPlayer.repaint();
 
         if (report.isHit()) {
             log(">> ALERT! WE HAVE BEEN HIT!");
@@ -232,7 +374,6 @@ public class BattleFrame extends JFrame {
                 gameOver = true;
                 log("FLEET DESTROYED. GAME OVER.");
 
-                // --- FIX: Delay the popup here too ---
                 Timer t = new Timer(100, e -> {
                     JOptionPane.showMessageDialog(this, "DEFEAT!");
                 });
@@ -243,8 +384,47 @@ public class BattleFrame extends JFrame {
             log(">> Enemy shot missed.");
         }
 
+        // Check if abilities should still be available after taking damage
+        checkAbilityAvailability();
+
         playerTurn = true;
         updateTurnIndicators(true);
+    }
+
+    private void runSolver() {
+        if (gameOver) return;
+
+        log(">> AUTO-PILOT ENGAGED. CALCULATING FIRING SOLUTIONS...");
+        playerTurn = false;
+        updateTurnIndicators(false);
+
+        solverTimer = new Timer(250, e -> {
+            if (gameOver) {
+                ((Timer)e.getSource()).stop();
+                return;
+            }
+
+            Report report = solverAI.takeTurn();
+            if (report == null) return;
+
+            Position p = report.getP();
+            log("Auto-Pilot fired at " + (char)('A' + p.getY()) + (p.getX() + 1));
+            pnlComputer.repaint();
+
+            if (report.isHit()) {
+                if (report.isSunk()) log(">> TARGET DESTROYED!");
+                if (!computerMap.hasShips()) {
+                    gameOver = true;
+                    log("MISSION ACCOMPLISHED. VICTORY!");
+                    JOptionPane.showMessageDialog(this, "PUZZLE SOLVED!");
+                    ((Timer)e.getSource()).stop();
+                    return;
+                }
+            } else {
+                executeComputerTurn();
+            }
+        });
+        solverTimer.start();
     }
 
     // --- Helper UI Methods ---
@@ -253,19 +433,13 @@ public class BattleFrame extends JFrame {
         turnContainer.removeAll();
 
         if (isPlayer) {
-            // Player Active
             stylePanel(pnlYourTurn, lblYourTurn, COLOR_PLAYER, DIM_ACTIVE, true);
             turnContainer.add(pnlYourTurn);
-
-            // Enemy Inactive
             stylePanel(pnlEnemyTurn, lblEnemyTurn, COLOR_ENEMY_DIM, DIM_INACTIVE, false);
             turnContainer.add(pnlEnemyTurn);
         } else {
-            // Enemy Active
             stylePanel(pnlEnemyTurn, lblEnemyTurn, COLOR_ENEMY, DIM_ACTIVE, true);
             turnContainer.add(pnlEnemyTurn);
-
-            // Player Inactive
             stylePanel(pnlYourTurn, lblYourTurn, COLOR_PLAYER_DIM, DIM_INACTIVE, false);
             turnContainer.add(pnlYourTurn);
         }
