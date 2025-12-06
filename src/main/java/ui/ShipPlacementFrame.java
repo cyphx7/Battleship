@@ -17,7 +17,6 @@ import game.Position;
 import java.awt.event.MouseEvent;
 
 public class ShipPlacementFrame extends JFrame {
-    // Custom Background Panel
     private class BackgroundPanel extends JPanel {
         private Image backgroundImage;
         
@@ -37,7 +36,6 @@ public class ShipPlacementFrame extends JFrame {
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             if (backgroundImage != null) {
-                // Scale image to fit panel while maintaining aspect ratio
                 double scale = Math.max(
                     getWidth() / (double)backgroundImage.getWidth(null),
                     getHeight() / (double)backgroundImage.getHeight(null)
@@ -48,14 +46,12 @@ public class ShipPlacementFrame extends JFrame {
                 int y = (getHeight() - height) / 2;
                 g.drawImage(backgroundImage, x, y, width, height, this);
             } else {
-                // Fallback to dark gray if image fails to load
                 g.setColor(new Color(30, 30, 30));
                 g.fillRect(0, 0, getWidth(), getHeight());
             }
         }
     }
-    
-    // Rounded panel for the sidebar
+
     private class RoundedPanel extends JPanel {
         private int cornerRadius = 20;
         private Color bgColor = new Color(30, 30, 30, 200);
@@ -82,7 +78,7 @@ public class ShipPlacementFrame extends JFrame {
     private JButton btnRotate, btnRandom, btnReset, btnStart;
     private JLabel[] shipLabels;
 
-    private int currentDirection = 0; // 0 = Horizontal, 1 = Vertical
+    private int currentDirection = 0;
     private int currentShipIndex = 0;
 
     private final String[] SHIP_NAMES = {"Kobaya", "Supply", "Ashigaru", "Sekibune", "Atakebune"};
@@ -98,7 +94,6 @@ public class ShipPlacementFrame extends JFrame {
     private final Color COLOR_BUTTON_HOVER = new Color(160, 82, 45, 220);
 
     private void handleGridClick(Position position, MouseEvent e) {
-        // Handle grid click for ship placement
         if (currentShipIndex < SHIP_SIZES.length) {
             boolean placed = mapPlayer.placeShip(
                 position.getX(),
@@ -115,7 +110,6 @@ public class ShipPlacementFrame extends JFrame {
     }
 
     private void updateUI() {
-        // Update UI to reflect current ship placement status
         if (currentShipIndex < SHIP_NAMES.length) {
             lblStatus.setText("Place your " + SHIP_NAMES[currentShipIndex] + " (" + SHIP_SIZES[currentShipIndex] + " cells)");
             shipLabels[currentShipIndex].setForeground(COLOR_ACCENT);
@@ -131,11 +125,9 @@ public class ShipPlacementFrame extends JFrame {
         setSize(1400, 950);
         setLocationRelativeTo(null);
 
-        // Set the content pane to our custom background panel
         setContentPane(new BackgroundPanel());
         setLayout(new BorderLayout());
 
-        // Set UI manager defaults for consistent styling
         UIManager.put("Panel.background", new Color(0, 0, 0, 0));
         UIManager.put("TextArea.background", new Color(255, 255, 255, 20));
         UIManager.put("TextArea.foreground", COLOR_TEXT);
@@ -151,19 +143,14 @@ public class ShipPlacementFrame extends JFrame {
         }
 
         mapPlayer = new Map();
-
-        // --- CENTER PANEL (Grid) ---
         centerPanel = new JPanel(new GridBagLayout());
         centerPanel.setOpaque(false);
-
-        // We pass 'true' to indicate this is the placement phase (grid handles clicks)
         panelPlayer = new UIMapPanel(mapPlayer, true);
         panelPlayer.setOnCellClicked(this::handleGridClick);
         centerPanel.add(panelPlayer);
 
         add(centerPanel, BorderLayout.CENTER);
 
-        // --- RIGHT SIDEBAR ---
         JPanel rightPanel = new RoundedPanel();
         rightPanel.setLayout(new GridBagLayout());
         rightPanel.setOpaque(false);
@@ -176,7 +163,6 @@ public class ShipPlacementFrame extends JFrame {
         gbc.anchor = GridBagConstraints.CENTER;
         gbc.weightx = 1.0;
 
-        // 1. HEADER (Top)
         gbc.gridy = 0;
         gbc.weighty = 0.0;
         gbc.insets = new Insets(0, 0, 10, 0);
@@ -193,7 +179,6 @@ public class ShipPlacementFrame extends JFrame {
         }
         rightPanel.add(lblHeader, gbc);
 
-        // 2. SHIP LIST
         gbc.gridy = 1;
         gbc.weighty = 0.0;
         gbc.insets = new Insets(0, 0, 20, 0);
@@ -225,7 +210,6 @@ public class ShipPlacementFrame extends JFrame {
         updateShipListVisuals();
         rightPanel.add(listPanel, gbc);
 
-        // 3. STATUS & ROTATE
         gbc.gridy = 2;
         gbc.insets = new Insets(0, 0, 15, 0);
 
@@ -242,20 +226,17 @@ public class ShipPlacementFrame extends JFrame {
         btnRotate.addActionListener(e -> toggleRotation());
         rightPanel.add(btnRotate, gbc);
 
-        // 4. RANDOM BUTTON
         gbc.gridy = 4;
         gbc.insets = new Insets(0, 0, 0, 0);
         btnRandom = createGraphicButton("RANDOMIZE", "/res/images/random.png", new Color(70, 130, 180));
         btnRandom.addActionListener(e -> randomizeShips());
         rightPanel.add(btnRandom, gbc);
 
-        // 5. FILLER (Pushes bottom buttons down)
         gbc.gridy = 5;
         gbc.weighty = 1.0;
         gbc.fill = GridBagConstraints.BOTH;
         rightPanel.add(Box.createGlue(), gbc);
 
-        // 6. BOTTOM BUTTONS (Reset & Start)
         gbc.gridy = 6;
         gbc.weighty = 0.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -266,16 +247,12 @@ public class ShipPlacementFrame extends JFrame {
         bottomPanel.setOpaque(false);
         bottomPanel.setPreferredSize(new Dimension(500, 110)); // Slightly taller for better fit
 
-        // Reset
         btnReset = createGraphicButton("RESET", "/res/images/reset.png", new Color(178, 34, 34));
         btnReset.addActionListener(e -> resetPlacement());
         bottomPanel.add(btnReset);
 
-        // Start
         btnStart = createGraphicButton("START", "/res/images/play.png", new Color(50, 205, 50));
         btnStart.setEnabled(false);
-
-        // --- FIX: Add Action Listener for Start Button ---
         btnStart.addActionListener(e -> startGame());
 
         bottomPanel.add(btnStart);
@@ -290,18 +267,14 @@ public class ShipPlacementFrame extends JFrame {
         JButton btn = new JButton() {
             @Override
             protected void paintComponent(Graphics g) {
-                // Completely transparent background
                 Graphics2D g2d = (Graphics2D) g.create();
                 g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                
-                // Only draw the content (text/icon), no background or border
                 super.paintComponent(g);
                 g2d.dispose();
             }
 
             @Override
             protected void paintBorder(Graphics g) {
-                // No border - we're drawing it in paintComponent
             }
         };
 
@@ -311,18 +284,15 @@ public class ShipPlacementFrame extends JFrame {
         btn.setContentAreaFilled(false);
         btn.setBorderPainted(false);
         btn.setFocusPainted(false);
-        
-        // Set button size
+
         int w = 250;
         int h = 100;
         btn.setPreferredSize(new Dimension(w, h));
         btn.setAlignmentX(Component.CENTER_ALIGNMENT);
-        
-        // Set text properties
+
         btn.setForeground(COLOR_TEXT);
         btn.setFont(new Font("Arial", Font.BOLD, 20));
-        
-        // Add icon if available
+
         ImageIcon icon = loadIcon(imagePath, w - 40, h - 20);
         if (icon != null) {
             btn.setIcon(icon);
@@ -382,44 +352,33 @@ public class ShipPlacementFrame extends JFrame {
         mapPlayer = new Map();
         Random r = new Random();
 
-        // 2. Logic to place all ships
         for (int i = 0; i < SHIP_SIZES.length; i++) {
             int size = SHIP_SIZES[i];
             mapPlayer.placeShipRandomly(r, size);
-            // Ensure images are assigned
             for (Ship s : mapPlayer.getShipList()) {
                 if (s.getImageName() == null) s.setImageName(SHIP_IMAGES[i]);
             }
         }
 
-        // 3. Mark all as done
         currentShipIndex = SHIP_NAMES.length;
 
-        // 4. Update UI
-        panelPlayer.updateMap(mapPlayer); // Critical: Update the panel's reference!
+        panelPlayer.updateMap(mapPlayer);
         updateShipListVisuals();
         checkCompletion();
     }
 
     private void resetPlacement() {
-        // 1. Clear map
         mapPlayer = new Map();
         currentShipIndex = 0;
         currentDirection = 0;
-
-        // 2. Reset Buttons
         btnStart.setEnabled(false);
         btnRotate.setEnabled(true); // FIX: Re-enable Rotate button!
-
         lblStatus.setText("Orientation: HORIZONTAL");
-
-        // 3. Update UI
         panelPlayer.updateMap(mapPlayer);
         updateShipListVisuals();
     }
 
     private void startGame() {
-        // Close this window and open BattleFrame
         new BattleFrame(mapPlayer).setVisible(true);
         this.dispose();
     }
@@ -432,7 +391,7 @@ public class ShipPlacementFrame extends JFrame {
     private void checkCompletion() {
         if (currentShipIndex >= SHIP_NAMES.length) {
             btnStart.setEnabled(true);
-            btnRotate.setEnabled(false); // Disable rotate when done
+            btnRotate.setEnabled(false);
             lblStatus.setText("FLEET READY!");
         }
     }
@@ -461,7 +420,6 @@ public class ShipPlacementFrame extends JFrame {
         btn.setFont(new Font("Arial", Font.BOLD, 18));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        // Add hover effect
         btn.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 btn.setForeground(COLOR_ACCENT);

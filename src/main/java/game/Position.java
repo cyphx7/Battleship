@@ -23,16 +23,16 @@ public class Position {
 
     public void move(char direction) {
         switch (direction) {
-            case 'N': // North
+            case 'N':
                 x--;
                 break;
-            case 'S': // South
+            case 'S':
                 x++;
                 break;
-            case 'O': // West (Ovest)
+            case 'O':
                 y--;
                 break;
-            case 'E': // East
+            case 'E':
                 y++;
                 break;
         }

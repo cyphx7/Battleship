@@ -58,20 +58,15 @@ public class FrameSplashscreen extends JFrame {
             e.printStackTrace();
         }
 
-        // Create the custom background panel
         UIJPanelBG splashPanel = new UIJPanelBG(bgImage);
         splashPanel.setBounds(0, 0, 600, 350);
         container.add(splashPanel);
 
-        // 3. Safe Load Loading GIF
         URL loadingUrl = getClass().getResource("/res/images/loading.gif");
         if (loadingUrl != null) {
             ImageIcon loadingIMG = new ImageIcon(loadingUrl);
             JLabel loadingLabel = new JLabel(loadingIMG);
-            // Position: Bottom Right
             loadingLabel.setBounds(560, 310, 24, 24);
-
-            // Add to container at index 0 to ensure it is ON TOP of the background
             container.add(loadingLabel, 0);
         } else {
             System.err.println("Warning: loading.gif not found.");

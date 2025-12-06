@@ -18,26 +18,22 @@ public class UIMapPanel extends JPanel {
     private Map map;
     private final boolean isPlayer;
 
-    // --- GRID SETTINGS ---
     private final int CELL_SIZE = 55;
     private final int GRID_SIZE = Map.MAP_SIZE * CELL_SIZE;
     private final int OFFSET = 45;
 
-    // --- OVERLAP SETTINGS ---
     private final int IMAGE_OVERLAP = 20;
 
-    // --- CACHES ---
     private java.util.Map<String, BufferedImage> coordImages = new HashMap<>();
     private java.util.Map<String, BufferedImage> shipSlices = new HashMap<>();
     private BufferedImage seaImage;
 
-    // --- NEW IMAGES ---
-    private BufferedImage imgHit;    // wreck w fire.png
-    private BufferedImage imgSunk;   // wreck_.png
-    private BufferedImage imgTarget; // target.png
+    private BufferedImage imgHit;
+    private BufferedImage imgSunk;
+    private BufferedImage imgTarget;
 
     private CellClickListener listener;
-    private Point hoverCell = null; // Track mouse for target.png
+    private Point hoverCell = null;
 
     public interface CellClickListener {
         void onCellClicked(Position p);
@@ -51,7 +47,6 @@ public class UIMapPanel extends JPanel {
 
         loadImages();
 
-        // Click Listener
         addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -65,8 +60,7 @@ public class UIMapPanel extends JPanel {
             }
         });
 
-        // --- NEW: Motion Listener for Target.png ---
-        if (!isPlayer) { // Only show target on enemy map
+        if (!isPlayer) {
             addMouseMotionListener(new MouseMotionAdapter() {
                 @Override
                 public void mouseMoved(MouseEvent e) {
@@ -103,11 +97,9 @@ public class UIMapPanel extends JPanel {
 
     private void loadImages() {
         try {
-            // 1. Backgrounds & Debris
             URL seaUrl = getClass().getResource("/res/images/sea.png");
             if (seaUrl != null) seaImage = ImageIO.read(seaUrl);
 
-            // NEW: Load Hit, Sunk, Target images
             URL hitUrl = getClass().getResource("/res/images/wreck w fire.png");
             if (hitUrl != null) imgHit = ImageIO.read(hitUrl);
 
@@ -117,10 +109,8 @@ public class UIMapPanel extends JPanel {
             URL targetUrl = getClass().getResource("/res/images/target.png");
             if (targetUrl != null) imgTarget = ImageIO.read(targetUrl);
 
-            // 2. Coords
             loadCoordinates();
 
-            // 3. Sliced Ships
             String[] prefixes = {"ship1", "ship2", "ship3", "ship4", "ship5"};
             for (String prefix : prefixes) {
                 for (int i = 1; i <= 12; i++) {
@@ -174,7 +164,6 @@ public class UIMapPanel extends JPanel {
         drawGridLines(g2d);
         drawMapContent(g2d);
 
-        // --- NEW: Draw Target Crosshair ---
         if (!isPlayer && hoverCell != null) {
             int x = OFFSET + hoverCell.x * CELL_SIZE;
             int y = OFFSET + hoverCell.y * CELL_SIZE;
@@ -234,14 +223,12 @@ public class UIMapPanel extends JPanel {
 
 
     private void drawMapContent(Graphics2D g) {
-        // Draw Ships (Active)
         if (isPlayer) {
             for (Ship s : map.getShipList()) {
                 drawShip(g, s);
             }
         }
 
-        // Draw Hits / Misses / Sunk Debris
         for (int row = 0; row < Map.MAP_SIZE; row++) {
             for (int col = 0; col < Map.MAP_SIZE; col++) {
                 int x = OFFSET + col * CELL_SIZE;
@@ -249,7 +236,6 @@ public class UIMapPanel extends JPanel {
                 char cell = map.getGridAt(row, col);
 
                 if (cell == Map.HIT) {
-                    // Check if this hit is part of a sunk ship
                     if (map.isSunkAt(row, col)) {
                         drawSunk(g, x, y);
                     } else {
@@ -306,20 +292,16 @@ public class UIMapPanel extends JPanel {
         }
     }
 
-    // --- NEW: Draw "wreck w fire.png" ---
     private void drawHit(Graphics2D g, int x, int y) {
         if (imgHit != null) {
             g.drawImage(imgHit, x, y, CELL_SIZE, CELL_SIZE, null);
         } else {
-            // Draw explosion effect
-            g.setColor(new Color(255, 165, 0, 200)); // Orange
+            g.setColor(new Color(255, 165, 0, 200));
             g.fillOval(x + 5, y + 5, CELL_SIZE - 10, CELL_SIZE - 10);
 
-            // Draw explosion lines
-            g.setColor(new Color(255, 69, 0, 220)); // Red-orange
+            g.setColor(new Color(255, 69, 0, 220));
             g.setStroke(new BasicStroke(3f));
 
-            // Draw explosion spikes
             int centerX = x + CELL_SIZE / 2;
             int centerY = y + CELL_SIZE / 2;
             int spikeLength = CELL_SIZE / 3;
@@ -331,13 +313,11 @@ public class UIMapPanel extends JPanel {
                 g.drawLine(centerX, centerY, x2, y2);
             }
 
-            // Draw inner circle
             g.setColor(new Color(255, 255, 0, 200)); // Yellow
             g.fillOval(centerX - 5, centerY - 5, 10, 10);
         }
     }
 
-    // --- NEW: Draw "wreck_.png" (Sunk) ---
     private void drawSunk(Graphics2D g, int x, int y) {
         if (imgSunk != null) {
             g.drawImage(imgSunk, x, y, CELL_SIZE, CELL_SIZE, null);
@@ -348,16 +328,13 @@ public class UIMapPanel extends JPanel {
     }
 
     private void drawMiss(Graphics2D g, int x, int y) {
-        // Draw a white background circle for better contrast
-        g.setColor(new Color(255, 255, 255, 200)); // Semi-transparent white
+        g.setColor(new Color(255, 255, 255, 200));
         g.fillOval(x + 5, y + 5, CELL_SIZE - 10, CELL_SIZE - 10);
 
-        // Draw a thicker red X
         g.setStroke(new BasicStroke(4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        g.setColor(new Color(220, 0, 0, 255)); // Bright red, fully opaque
+        g.setColor(new Color(220, 0, 0, 255));
 
-        // Draw the X with less padding to make it larger
-        int padding = 10; // Reduced from 15 to make the X larger
+        int padding = 10;
         g.drawLine(x + padding, y + padding,
                 x + CELL_SIZE - padding, y + CELL_SIZE - padding);
         g.drawLine(x + CELL_SIZE - padding, y + padding,

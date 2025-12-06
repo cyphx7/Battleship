@@ -4,32 +4,29 @@ import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 
 public class UIStatPanel extends UIJPanelBG {
     private static final long serialVersionUID = 1L;
 
-    // Ship configuration matching the available images
     private final int[] SHIP_SIZES = {1, 2, 3, 4, 5};
     private final String[] SHIP_NAMES = {"Patrol Boat", "Submarine", "Destroyer", "Battleship", "Aircraft Carrier"};
     private final String[] SHIP_IMAGE_PATHS = {
-            "ship1.png",  // Patrol Boat (1)
-            "ship2.png",  // Submarine (2)
-            "ship3.png",  // Destroyer (3)
-            "ship4.png",  // Battleship (4)
-            "ship4.png"   // Aircraft Carrier (5) - Using ship4.png
+            "ship1.png",
+            "ship2.png",
+            "ship3.png",
+            "ship4.png",
+            "ship4.png"
     };
 
-    private ArrayList<JLabel> playerShips = new ArrayList<JLabel>();
-    private ArrayList<JLabel> enemyShips = new ArrayList<JLabel>();
+    private ArrayList<JLabel> playerShips = new ArrayList<>();
+    private ArrayList<JLabel> enemyShips = new ArrayList<>();
     private JPanel playerPanel;
     private JPanel enemyPanel;
 
-    private final int SHIP_ICON_HEIGHT = 30;  // Slightly reduced height
-    private final int MAX_SHIP_WIDTH = 80;    // Max width for ship images
+    private final int SHIP_ICON_HEIGHT = 30;
+    private final int MAX_SHIP_WIDTH = 80;
 
     public UIStatPanel() {
         super(Toolkit.getDefaultToolkit()
@@ -39,15 +36,13 @@ public class UIStatPanel extends UIJPanelBG {
         setBorder(new EmptyBorder(10, 10, 10, 10));
         setOpaque(false);
 
-        // --- PLAYER FLEET STATUS ---
-        add(createHeaderLabel("YOUR FLEET", new Color(50, 205, 50)));
+        add(createHeaderLabel("YOUR FLEET", new Color(50, 205, 150)));
         add(Box.createVerticalStrut(5));
         playerPanel = createShipIconPanel(playerShips, true);
         add(playerPanel);
         add(Box.createVerticalStrut(10));
 
-        // --- ENEMY FLEET STATUS ---
-        add(createHeaderLabel("ENEMY FLEET", new Color(255, 69, 0)));
+        add(createHeaderLabel("ENEMY FLEET", new Color(255, 100, 100)));
         add(Box.createVerticalStrut(5));
         enemyPanel = createShipIconPanel(enemyShips, false);
         add(enemyPanel);
@@ -71,31 +66,26 @@ public class UIStatPanel extends UIJPanelBG {
             shipRow.setMaximumSize(new Dimension(280, 45));
             shipRow.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
 
-            // Status panel (left side)
             JPanel statusPanel = new JPanel(new BorderLayout());
             statusPanel.setOpaque(false);
             statusPanel.setPreferredSize(new Dimension(15, 30));
 
-            // Create status icon (colored square)
             JLabel statusIcon = new JLabel();
             statusIcon.setOpaque(true);
-            statusIcon.setBackground(new Color(0, 200, 0)); // Start as green (alive)
+            statusIcon.setBackground(new Color(0, 200, 0));
             statusIcon.setBorder(BorderFactory.createLineBorder(Color.GRAY, 1));
             statusPanel.add(statusIcon, BorderLayout.CENTER);
 
-            // Ship panel (right side)
             JPanel shipPanel = new JPanel(new BorderLayout());
             shipPanel.setOpaque(false);
             shipPanel.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
 
-            // Create ship icon
             JLabel shipIcon = new JLabel();
             try {
                 String imagePath = "/res/images/" + SHIP_IMAGE_PATHS[i];
                 URL imgUrl = getClass().getResource(imagePath);
                 if (imgUrl != null) {
                     ImageIcon icon = new ImageIcon(ImageIO.read(imgUrl));
-                    // Scale the image to fit our panel while maintaining aspect ratio
                     double aspectRatio = (double) icon.getIconWidth() / icon.getIconHeight();
                     int width = (int) (SHIP_ICON_HEIGHT * aspectRatio);
                     width = Math.min(width, MAX_SHIP_WIDTH);
@@ -112,10 +102,7 @@ public class UIStatPanel extends UIJPanelBG {
             shipIcon.setForeground(Color.WHITE);
             shipIcon.setFont(new Font("Arial", Font.BOLD, 11));
 
-            // Add components to ship panel
             shipPanel.add(shipIcon, BorderLayout.WEST);
-
-            // Add components to row
             shipRow.add(statusPanel, BorderLayout.WEST);
             shipRow.add(shipPanel, BorderLayout.CENTER);
 
@@ -123,7 +110,6 @@ public class UIStatPanel extends UIJPanelBG {
             panel.add(shipRow);
         }
 
-        // Wrap in a scroll pane if needed
         JScrollPane scrollPane = new JScrollPane(panel);
         scrollPane.setOpaque(false);
         scrollPane.getViewport().setOpaque(false);
@@ -146,9 +132,8 @@ public class UIStatPanel extends UIJPanelBG {
         return label;
     }
 
-    // In UIStatPanel.java
     public void updateStatus(int[] playerSizes, int[] computerSizes,
-                             boolean[] playerShipStates, boolean[] computerShipStates) {
+                           boolean[] playerShipStates, boolean[] computerShipStates) {
         updateShipStatus(playerShips, playerSizes, playerShipStates);
         updateShipStatus(enemyShips, computerSizes, computerShipStates);
         revalidate();

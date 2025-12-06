@@ -5,11 +5,8 @@ import java.util.Random;
 public class Map {
     public static final int MAP_SIZE = 10;
     public static final char EMPTY = '0', SHIP = 'X', WATER = 'A', HIT = 'C', MISS = 'M';
-
     private char[][] mapGrid;
     private MyLinkedList<Ship> shipList;
-
-    // --- NEW: Track sunk ships separately for the UI ---
     private MyLinkedList<Ship> sunkList;
 
     public Map() {
@@ -196,7 +193,6 @@ public class Map {
         return ship;
     }
 
-    // --- NEW: UI Helper ---
     public boolean isSunkAt(int row, int col) {
         for (int i = 0; i < sunkList.size(); i++) {
             if (sunkList.get(i).contains(row, col)) return true;

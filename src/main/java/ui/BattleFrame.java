@@ -13,12 +13,6 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.net.URL;
-import java.util.ArrayList;
-
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.TexturePaint;
-import java.awt.Rectangle;
 import javax.imageio.ImageIO;
 
 class BackgroundPanel extends JPanel {
@@ -40,10 +34,8 @@ class BackgroundPanel extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         if (background != null) {
-            // Scale the image to fit the panel
             g.drawImage(background, 0, 0, getWidth(), getHeight(), this);
         } else {
-            // Fallback color if image loading fails
             g.setColor(new Color(30, 30, 60));
             g.fillRect(0, 0, getWidth(), getHeight());
         }

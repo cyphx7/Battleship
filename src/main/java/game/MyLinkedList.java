@@ -102,8 +102,6 @@ public class MyLinkedList<T> implements Iterable<T> {
         head = null;
         size = 0;
     }
-
-    // Implementing Iterator allows us to use "for (Type t : list)" loops
     @Override
     public Iterator<T> iterator() {
         return new Iterator<T>() {
