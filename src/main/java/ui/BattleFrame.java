@@ -2,12 +2,18 @@ package ui;
 
 import game.Computer;
 import game.Map;
+import game.MyLinkedList;
 import game.Position;
 import game.Report;
+import game.Ship;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.net.URL;
+import java.util.ArrayList;
 
 public class BattleFrame extends JFrame {
     private Map playerMap;
@@ -31,11 +37,14 @@ public class BattleFrame extends JFrame {
     private JButton btnTsunami;
     private int activeAbility = 0;
 
+    private UIStatPanel statPanel;
+
     private boolean playerTurn = true;
     private boolean gameOver = false;
 
-    // Fixed dimension for the turn indicator to prevent layout shifting
     private final Dimension DIM_TURN_CONTAINER = new Dimension(300, 150);
+    private final int ABILITY_BTN_W = 135;
+    private final int ABILITY_BTN_H = 45;
 
     public BattleFrame(Map playerMap) {
         super("Battleship - Combat Mode");
@@ -52,33 +61,28 @@ public class BattleFrame extends JFrame {
     private void initUI() {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
 
-        // MAXIMIZED FOR BETTER VISIBILITY
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setMinimumSize(new Dimension(1200, 800));
 
         setLayout(new BorderLayout());
 
-        // CENTER PANEL (Main Game Area)
         JPanel centerPanel = new JPanel(new BorderLayout());
         centerPanel.setBackground(new Color(50, 50, 50));
 
-        // WRAPPER: Holds both Headers and Grids
         JPanel gameBoardContainer = new JPanel(new BorderLayout());
         gameBoardContainer.setOpaque(false);
         gameBoardContainer.setBorder(new EmptyBorder(20, 20, 20, 20));
 
-        // 1. HEADERS ROW (Top) - Separated from grids so resizing doesn't break layout
         JPanel headerPanel = new JPanel(new GridLayout(1, 2, 20, 0));
         headerPanel.setOpaque(false);
-        headerPanel.setBorder(new EmptyBorder(0, 0, 10, 0)); // Gap between header and grid
+        headerPanel.setBorder(new EmptyBorder(0, 0, 10, 0));
 
-        JLabel lblPlayerHeader = createHeaderLabel("/res/images/yourfleet.png");
-        JLabel lblEnemyHeader = createHeaderLabel("/res/images/enemysector.png");
+        JLabel lblPlayerHeader = createHeaderLabel("/res/images/yourfleet.png", 300, 50);
+        JLabel lblEnemyHeader = createHeaderLabel("/res/images/enemysector.png", 300, 50);
 
         headerPanel.add(lblPlayerHeader);
         headerPanel.add(lblEnemyHeader);
 
-        // 2. MAPS ROW (Center)
         JPanel mapPanel = new JPanel(new GridLayout(1, 2, 20, 0));
         mapPanel.setOpaque(false);
 
@@ -96,13 +100,11 @@ public class BattleFrame extends JFrame {
         mapPanel.add(pnlPlayer);
         mapPanel.add(pnlComputer);
 
-        // Assemble the Game Board
         gameBoardContainer.add(headerPanel, BorderLayout.NORTH);
         gameBoardContainer.add(mapPanel, BorderLayout.CENTER);
 
         centerPanel.add(gameBoardContainer, BorderLayout.CENTER);
 
-        // LOG AREA (Bottom)
         logArea = new JTextArea();
         logArea.setEditable(false);
         logArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
@@ -115,7 +117,6 @@ public class BattleFrame extends JFrame {
         centerPanel.add(scroll, BorderLayout.SOUTH);
         add(centerPanel, BorderLayout.CENTER);
 
-        // RIGHT PANEL
         rightPanel = new JPanel();
         rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
         rightPanel.setPreferredSize(new Dimension(320, 0));
@@ -135,42 +136,39 @@ public class BattleFrame extends JFrame {
         rightPanel.add(turnContainer);
         rightPanel.add(Box.createVerticalStrut(20));
 
-        JLabel lblAbilities = new JLabel("SPECIAL ABILITIES", SwingConstants.CENTER);
-        lblAbilities.setFont(new Font("Arial", Font.BOLD, 22));
-        lblAbilities.setForeground(Color.ORANGE);
+        JLabel lblAbilities = createHeaderLabel("/res/images/specialabilities.png", 300, 50);
         lblAbilities.setAlignmentX(Component.CENTER_ALIGNMENT);
         rightPanel.add(lblAbilities);
         rightPanel.add(Box.createVerticalStrut(10));
 
         JPanel abilityGrid = new JPanel(new GridLayout(1, 2, 15, 0));
         abilityGrid.setOpaque(false);
-        abilityGrid.setPreferredSize(new Dimension(280, 45));
-        abilityGrid.setMaximumSize(new Dimension(280, 45));
+        abilityGrid.setPreferredSize(new Dimension(280, ABILITY_BTN_H));
+        abilityGrid.setMaximumSize(new Dimension(280, ABILITY_BTN_H));
         abilityGrid.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        btnScout = new JButton("SCOUT");
-        btnTsunami = new JButton("TSUNAMI");
-        styleButton(btnScout);
-        styleButton(btnTsunami);
+        btnScout = createGraphicAbilityButton("/res/images/scout.png", ABILITY_BTN_W, ABILITY_BTN_H);
+        btnTsunami = createGraphicAbilityButton("/res/images/tsunami.png", ABILITY_BTN_W, ABILITY_BTN_H);
 
         btnScout.addActionListener(e -> {
             activeAbility = 1;
             log(">> SCOUT PLANE READY. Select a target zone.");
-            btnScout.setBackground(Color.ORANGE);
-            btnTsunami.setBackground(Color.DARK_GRAY);
+            btnScout.setBorder(BorderFactory.createLineBorder(Color.ORANGE, 3));
+            btnTsunami.setBorder(BorderFactory.createLineBorder(Color.GRAY, 2));
         });
 
         btnTsunami.addActionListener(e -> {
             activeAbility = 2;
             log(">> TSUNAMI STRIKE READY. Select a target zone.");
-            btnTsunami.setBackground(Color.RED);
-            btnScout.setBackground(Color.DARK_GRAY);
+            btnTsunami.setBorder(BorderFactory.createLineBorder(Color.RED, 3));
+            btnScout.setBorder(BorderFactory.createLineBorder(Color.GRAY, 2));
         });
 
         abilityGrid.add(btnScout);
         abilityGrid.add(btnTsunami);
         rightPanel.add(abilityGrid);
-        rightPanel.add(Box.createVerticalStrut(30));
+
+        rightPanel.add(Box.createVerticalStrut(15));
 
         JButton btnSolve = new JButton("AUTO-PILOT");
         styleButton(btnSolve);
@@ -182,16 +180,23 @@ public class BattleFrame extends JFrame {
         btnSolve.addActionListener(e -> runSolver());
         rightPanel.add(btnSolve);
 
-        rightPanel.add(Box.createVerticalStrut(20));
-        UIStatPanel statPanel = new UIStatPanel();
-        statPanel.setPreferredSize(new Dimension(300, 120));
-        statPanel.setMaximumSize(new Dimension(500, 120));
+        // --- UI STAT PANEL (Size parameters already set to use full remaining space) ---
+        rightPanel.add(Box.createVerticalStrut(15));
+        statPanel = new UIStatPanel();
+
+        statPanel.setPreferredSize(new Dimension(300, 150));
+        statPanel.setMaximumSize(new Dimension(320, Integer.MAX_VALUE));
         statPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
         rightPanel.add(statPanel);
+
+        rightPanel.add(Box.createVerticalGlue());
+        rightPanel.add(statPanel);
+        rightPanel.add(Box.createVerticalGlue());
 
         add(rightPanel, BorderLayout.EAST);
         checkAbilityAvailability();
         log("Battle stations ready. Select a target on the Enemy Sector.");
+        updateUIStatPanel();
     }
 
     private void initTurnPanels() {
@@ -223,8 +228,7 @@ public class BattleFrame extends JFrame {
                         w = (int) (h * ratio);
                     }
 
-                    // Safety check for turn container bounds
-                    if (targetHeight == -1 && targetWidth == (DIM_TURN_CONTAINER.width - 20)) {
+                    if (path.contains("turn.png") && targetWidth == (DIM_TURN_CONTAINER.width - 20)) {
                         if (h > DIM_TURN_CONTAINER.height) {
                             h = DIM_TURN_CONTAINER.height;
                             w = (int) (h * ((double)img.getWidth(null)/img.getHeight(null)));
@@ -242,23 +246,42 @@ public class BattleFrame extends JFrame {
         return null;
     }
 
-    // Helper method to create the fleet headers separately
-    private JLabel createHeaderLabel(String imagePath) {
+    private JLabel createHeaderLabel(String imagePath, int width, int height) {
         JLabel l = new JLabel();
         l.setHorizontalAlignment(SwingConstants.CENTER);
 
-        // --- EDIT SIZE HERE ---
-        // Change '60' to make the image bigger or smaller (height in pixels).
-        // Since we separated the rows, this won't break the grid layout!
-        ImageIcon icon = loadScaledImage(imagePath, 300, 200);
+        ImageIcon icon = loadScaledImage(imagePath, width, height);
 
         if (icon != null) {
             l.setIcon(icon);
         } else {
-            l.setText(imagePath);
-            l.setForeground(Color.WHITE);
+            l.setText(imagePath.substring(imagePath.lastIndexOf('/') + 1).replace(".png", "").toUpperCase());
+            l.setFont(new Font("Arial", Font.BOLD, 22));
+            l.setForeground(Color.ORANGE);
         }
         return l;
+    }
+
+    private JButton createGraphicAbilityButton(String imagePath, int width, int height) {
+        JButton btn = new JButton();
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setPreferredSize(new Dimension(width, height));
+        btn.setMaximumSize(new Dimension(width, height));
+
+        ImageIcon icon = loadScaledImage(imagePath, width, height);
+
+        if (icon != null) {
+            btn.setIcon(icon);
+            btn.setText("");
+            btn.setOpaque(false);
+            btn.setContentAreaFilled(false);
+            btn.setBorderPainted(false);
+            btn.setBorder(BorderFactory.createLineBorder(Color.GRAY, 2));
+        } else {
+            btn.setText(imagePath.substring(imagePath.lastIndexOf('/') + 1).replace(".png", "").toUpperCase());
+            styleButton(btn);
+        }
+        return btn;
     }
 
     private void updateTurnIndicators(boolean isPlayer) {
@@ -273,22 +296,55 @@ public class BattleFrame extends JFrame {
         turnContainer.repaint();
     }
 
+    private int[] getShipSizes(MyLinkedList<Ship> shipList) {
+        int[] sizes = new int[shipList.size()];
+        for (int i = 0; i < shipList.size(); i++) {
+            Ship s = shipList.get(i);
+            sizes[i] = Math.max(Math.abs(s.getEndX() - s.getStartX()), Math.abs(s.getEndY() - s.getStartY())) + 1;
+        }
+        return sizes;
+    }
+
+    // In BattleFrame.java
+    private void updateUIStatPanel() {
+        // Get all player ship sizes
+        int[] playerSizes = getShipSizes(playerMap.getShipList());
+        int[] computerSizes = getShipSizes(computerMap.getShipList());
+
+        // Create arrays to track which ships are alive
+        boolean[] playerShipStates = new boolean[5]; // Assuming 5 ship types
+        boolean[] computerShipStates = new boolean[5];
+
+        // Mark all ships as alive by default
+        for (int i = 0; i < 5; i++) {
+            playerShipStates[i] = true;
+            computerShipStates[i] = true;
+        }
+
+        // Update the stat panel with the current states
+        if (statPanel != null) {
+            statPanel.updateStatus(playerSizes, computerSizes, playerShipStates, computerShipStates);
+        }
+    }
+
     private void checkAbilityAvailability() {
         if (playerMap.isShipAlive(2)) {
             btnScout.setEnabled(true);
-            if(activeAbility != 1) btnScout.setBackground(Color.DARK_GRAY);
+            if(activeAbility != 1) btnScout.setBorder(BorderFactory.createLineBorder(Color.GRAY, 2));
         } else {
             btnScout.setEnabled(false);
             btnScout.setText("SCOUT (LOST)");
             btnScout.setBackground(Color.BLACK);
+            btnScout.setBorder(BorderFactory.createLineBorder(Color.BLACK, 2));
         }
         if (playerMap.isShipAlive(5)) {
             btnTsunami.setEnabled(true);
-            if(activeAbility != 2) btnTsunami.setBackground(Color.DARK_GRAY);
+            if(activeAbility != 2) btnTsunami.setBorder(BorderFactory.createLineBorder(Color.GRAY, 2));
         } else {
             btnTsunami.setEnabled(false);
             btnTsunami.setText("TSUNAMI (LOST)");
             btnTsunami.setBackground(Color.BLACK);
+            btnTsunami.setBorder(BorderFactory.createLineBorder(Color.BLACK, 2));
         }
     }
 
@@ -305,9 +361,10 @@ public class BattleFrame extends JFrame {
         if (found) JOptionPane.showMessageDialog(this, "Enemy Detected in the scanned area!", "Scout Report", JOptionPane.WARNING_MESSAGE);
         else log(">> REPORT: Sector appears clear.");
         activeAbility = 0;
-        styleButton(btnScout);
-        styleButton(btnTsunami);
+        btnScout.setBorder(BorderFactory.createLineBorder(Color.GRAY, 2));
+        btnTsunami.setBorder(BorderFactory.createLineBorder(Color.GRAY, 2));
         endPlayerTurn();
+        updateUIStatPanel();
     }
 
     private void executeTsunami(Position center) {
@@ -330,9 +387,10 @@ public class BattleFrame extends JFrame {
             }
         } else log(">> Tsunami hit nothing.");
         activeAbility = 0;
-        styleButton(btnScout);
-        styleButton(btnTsunami);
+        btnScout.setBorder(BorderFactory.createLineBorder(Color.GRAY, 2));
+        btnTsunami.setBorder(BorderFactory.createLineBorder(Color.GRAY, 2));
         endPlayerTurn();
+        updateUIStatPanel();
     }
 
     private void executePlayerTurn(Position target) {
@@ -348,6 +406,8 @@ public class BattleFrame extends JFrame {
                 return;
             }
         } else log(">> Miss.");
+
+        updateUIStatPanel();
         endPlayerTurn();
     }
 
@@ -374,7 +434,9 @@ public class BattleFrame extends JFrame {
                 JOptionPane.showMessageDialog(this, "DEFEAT!");
             }
         } else log(">> Enemy shot missed.");
+
         checkAbilityAvailability();
+        updateUIStatPanel();
         playerTurn = true;
         updateTurnIndicators(true);
     }
@@ -389,6 +451,7 @@ public class BattleFrame extends JFrame {
             Report report = solverAI.takeTurn();
             if (report == null) return;
             pnlComputer.repaint();
+            updateUIStatPanel();
             if (report.isHit() && !computerMap.hasShips()) {
                 gameOver = true;
                 JOptionPane.showMessageDialog(this, "PUZZLE SOLVED!");
@@ -403,7 +466,7 @@ public class BattleFrame extends JFrame {
         btn.setForeground(Color.WHITE);
         btn.setFocusPainted(false);
         btn.setFont(new Font("Arial", Font.BOLD, 16));
-        btn.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        btn.setBorder(BorderFactory.createLineBorder(Color.GRAY, 2));
     }
 
     private void log(String msg) {
