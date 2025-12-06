@@ -15,6 +15,12 @@ import java.awt.image.BufferedImage;
 import java.net.URL;
 import java.util.ArrayList;
 
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.TexturePaint;
+import java.awt.Rectangle;
+import javax.imageio.ImageIO;
+
 public class BattleFrame extends JFrame {
     private Map playerMap;
     private Map computerMap;
@@ -60,29 +66,30 @@ public class BattleFrame extends JFrame {
 
     private void initUI() {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setMinimumSize(new Dimension(1200, 800));
-
         setLayout(new BorderLayout());
 
+        // Main center panel
         JPanel centerPanel = new JPanel(new BorderLayout());
         centerPanel.setBackground(new Color(50, 50, 50));
 
+        // Game board container
         JPanel gameBoardContainer = new JPanel(new BorderLayout());
         gameBoardContainer.setOpaque(false);
         gameBoardContainer.setBorder(new EmptyBorder(20, 20, 20, 20));
 
+        // Header panel
         JPanel headerPanel = new JPanel(new GridLayout(1, 2, 20, 0));
         headerPanel.setOpaque(false);
         headerPanel.setBorder(new EmptyBorder(0, 0, 10, 0));
 
         JLabel lblPlayerHeader = createHeaderLabel("/res/images/yourfleet.png", 300, 50);
         JLabel lblEnemyHeader = createHeaderLabel("/res/images/enemysector.png", 300, 50);
-
         headerPanel.add(lblPlayerHeader);
         headerPanel.add(lblEnemyHeader);
 
+        // Map panel
         JPanel mapPanel = new JPanel(new GridLayout(1, 2, 20, 0));
         mapPanel.setOpaque(false);
 
@@ -100,23 +107,42 @@ public class BattleFrame extends JFrame {
         mapPanel.add(pnlPlayer);
         mapPanel.add(pnlComputer);
 
+        // Add components to game board container
         gameBoardContainer.add(headerPanel, BorderLayout.NORTH);
         gameBoardContainer.add(mapPanel, BorderLayout.CENTER);
 
-        centerPanel.add(gameBoardContainer, BorderLayout.CENTER);
+        // Create a wrapper panel for game board and log
+        JPanel gameBoardWrapper = new JPanel(new BorderLayout());
+        gameBoardWrapper.setOpaque(false);
+        gameBoardWrapper.add(gameBoardContainer, BorderLayout.CENTER);
 
+        // Create log area
         logArea = new JTextArea();
         logArea.setEditable(false);
-        logArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        logArea.setForeground(Color.GREEN);
-        logArea.setBackground(Color.BLACK);
-        JScrollPane scroll = new JScrollPane(logArea);
-        scroll.setPreferredSize(new Dimension(0, 150));
-        scroll.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(Color.GRAY), "MISSION LOG", 0, 0, null, Color.WHITE));
+        logArea.setFont(new Font("Courier New", Font.BOLD, 14));
+        logArea.setForeground(Color.BLACK);
+        logArea.setBackground(new Color(222, 184, 135));
+        logArea.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
+        logArea.setLineWrap(true);
+        logArea.setWrapStyleWord(true);
 
-        centerPanel.add(scroll, BorderLayout.SOUTH);
+        // Create scroll pane for log
+        JScrollPane scroll = new JScrollPane(logArea);
+        scroll.setBorder(BorderFactory.createLineBorder(new Color(139, 69, 19), 2));
+        scroll.setBackground(new Color(222, 184, 135));
+        scroll.getViewport().setBackground(new Color(222, 184, 135));
+        scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        scroll.setPreferredSize(new Dimension(0, 150)); // Fixed height
+
+        // Add log to wrapper
+        gameBoardWrapper.add(scroll, BorderLayout.SOUTH);
+
+        // Add wrapper to center panel
+        centerPanel.add(gameBoardWrapper, BorderLayout.CENTER);
         add(centerPanel, BorderLayout.CENTER);
 
+        // Right panel setup
         rightPanel = new JPanel();
         rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
         rightPanel.setPreferredSize(new Dimension(320, 0));
@@ -172,7 +198,7 @@ public class BattleFrame extends JFrame {
 
         JButton btnSolve = new JButton("AUTO-PILOT");
         styleButton(btnSolve);
-        btnSolve.setBackground(new Color(0, 102, 204));
+        btnSolve.setBackground(new Color(139, 69, 19));
         btnSolve.setForeground(Color.WHITE);
         btnSolve.setAlignmentX(Component.CENTER_ALIGNMENT);
         btnSolve.setMaximumSize(new Dimension(280, 45));
@@ -446,20 +472,53 @@ public class BattleFrame extends JFrame {
         log(">> AUTO-PILOT ENGAGED...");
         playerTurn = false;
         updateTurnIndicators(false);
+
+        // Stop any existing timer
+        if (solverTimer != null && solverTimer.isRunning()) {
+            solverTimer.stop();
+        }
+
         solverTimer = new Timer(150, e -> {
-            if (gameOver) { ((Timer)e.getSource()).stop(); return; }
+            if (gameOver) {
+                ((Timer)e.getSource()).stop();
+                return;
+            }
+
+            // Let the solver take a turn
             Report report = solverAI.takeTurn();
             if (report == null) return;
+
             pnlComputer.repaint();
             updateUIStatPanel();
+
             if (report.isHit() && !computerMap.hasShips()) {
                 gameOver = true;
                 JOptionPane.showMessageDialog(this, "PUZZLE SOLVED!");
                 ((Timer)e.getSource()).stop();
+                return;
             }
+
+            // After solver's turn, let the computer take its turn
+            Timer computerTimer = new Timer(800, evt -> {
+                executeComputerTurn();
+                // After computer's turn, continue with solver's next move
+                if (!gameOver) {
+                    ((Timer)e.getSource()).restart();
+                }
+            });
+            computerTimer.setRepeats(false);
+            computerTimer.start();
+
+            // Pause the solver timer while computer is moving
+            ((Timer)e.getSource()).stop();
+
         });
+
+        // Set initial delay to 0 for immediate first move
+        solverTimer.setInitialDelay(0);
         solverTimer.start();
     }
+
 
     private void styleButton(JButton btn) {
         btn.setBackground(Color.DARK_GRAY);

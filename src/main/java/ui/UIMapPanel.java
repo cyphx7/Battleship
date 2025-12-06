@@ -214,13 +214,24 @@ public class UIMapPanel extends JPanel {
     }
 
     private void drawGridLines(Graphics2D g) {
-        g.setColor(new Color(255, 255, 255, 60));
-        g.setStroke(new BasicStroke(1f));
+        // Draw main grid lines (thicker and more visible)
+        g.setColor(new Color(0, 0, 0, 200)); // Black with some transparency
+        g.setStroke(new BasicStroke(1.5f));
         for (int i = 0; i <= Map.MAP_SIZE; i++) {
             g.drawLine(OFFSET, OFFSET + i * CELL_SIZE, OFFSET + GRID_SIZE, OFFSET + i * CELL_SIZE);
             g.drawLine(OFFSET + i * CELL_SIZE, OFFSET, OFFSET + i * CELL_SIZE, OFFSET + GRID_SIZE);
         }
+
+        // Add subtle dashed lines for a nautical chart effect
+        float[] dash = {3f, 3f};
+        g.setStroke(new BasicStroke(1f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10f, dash, 0f));
+        g.setColor(new Color(200, 230, 255, 50));
+        for (int i = 0; i <= Map.MAP_SIZE; i += 2) {
+            g.drawLine(OFFSET, OFFSET + i * CELL_SIZE, OFFSET + GRID_SIZE, OFFSET + i * CELL_SIZE);
+            g.drawLine(OFFSET + i * CELL_SIZE, OFFSET, OFFSET + i * CELL_SIZE, OFFSET + GRID_SIZE);
+        }
     }
+
 
     private void drawMapContent(Graphics2D g) {
         // Draw Ships (Active)
@@ -300,10 +311,29 @@ public class UIMapPanel extends JPanel {
         if (imgHit != null) {
             g.drawImage(imgHit, x, y, CELL_SIZE, CELL_SIZE, null);
         } else {
-            g.setColor(new Color(255, 50, 50, 200));
-            g.setStroke(new BasicStroke(4f));
-            g.drawLine(x + 10, y + 10, x + CELL_SIZE - 10, y + CELL_SIZE - 10);
-            g.drawLine(x + CELL_SIZE - 10, y + 10, x + 10, y + CELL_SIZE - 10);
+            // Draw explosion effect
+            g.setColor(new Color(255, 165, 0, 200)); // Orange
+            g.fillOval(x + 5, y + 5, CELL_SIZE - 10, CELL_SIZE - 10);
+
+            // Draw explosion lines
+            g.setColor(new Color(255, 69, 0, 220)); // Red-orange
+            g.setStroke(new BasicStroke(3f));
+
+            // Draw explosion spikes
+            int centerX = x + CELL_SIZE / 2;
+            int centerY = y + CELL_SIZE / 2;
+            int spikeLength = CELL_SIZE / 3;
+
+            for (int i = 0; i < 8; i++) {
+                double angle = Math.PI * i / 4;
+                int x2 = centerX + (int)(Math.cos(angle) * spikeLength);
+                int y2 = centerY + (int)(Math.sin(angle) * spikeLength);
+                g.drawLine(centerX, centerY, x2, y2);
+            }
+
+            // Draw inner circle
+            g.setColor(new Color(255, 255, 0, 200)); // Yellow
+            g.fillOval(centerX - 5, centerY - 5, 10, 10);
         }
     }
 
@@ -318,7 +348,19 @@ public class UIMapPanel extends JPanel {
     }
 
     private void drawMiss(Graphics2D g, int x, int y) {
-        g.setColor(new Color(255, 255, 255, 120));
-        g.fillOval(x + CELL_SIZE / 2 - 8, y + CELL_SIZE / 2 - 8, 16, 16);
+        // Draw a white background circle for better contrast
+        g.setColor(new Color(255, 255, 255, 200)); // Semi-transparent white
+        g.fillOval(x + 5, y + 5, CELL_SIZE - 10, CELL_SIZE - 10);
+
+        // Draw a thicker red X
+        g.setStroke(new BasicStroke(4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.setColor(new Color(220, 0, 0, 255)); // Bright red, fully opaque
+
+        // Draw the X with less padding to make it larger
+        int padding = 10; // Reduced from 15 to make the X larger
+        g.drawLine(x + padding, y + padding,
+                x + CELL_SIZE - padding, y + CELL_SIZE - padding);
+        g.drawLine(x + CELL_SIZE - padding, y + padding,
+                x + padding, y + CELL_SIZE - padding);
     }
 }
