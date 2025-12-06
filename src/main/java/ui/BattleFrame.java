@@ -23,25 +23,19 @@ public class BattleFrame extends JFrame {
     private JPanel rightPanel;
     private JPanel turnContainer;
 
+    private JLabel lblTurnIndicator;
+    private ImageIcon imgYourTurn;
+    private ImageIcon imgEnemyTurn;
+
     private JButton btnScout;
     private JButton btnTsunami;
     private int activeAbility = 0;
 
-    private JPanel pnlYourTurn;
-    private JPanel pnlEnemyTurn;
-    private JLabel lblYourTurn;
-    private JLabel lblEnemyTurn;
-
     private boolean playerTurn = true;
     private boolean gameOver = false;
 
-    private final Color COLOR_PLAYER = new Color(34, 139, 34);
-    private final Color COLOR_PLAYER_DIM = new Color(20, 80, 20);
-    private final Color COLOR_ENEMY = new Color(178, 34, 34);
-    private final Color COLOR_ENEMY_DIM = new Color(80, 20, 20);
-
-    private final Dimension DIM_ACTIVE = new Dimension(300, 100);
-    private final Dimension DIM_INACTIVE = new Dimension(300, 50);
+    // Fixed dimension for the turn indicator to prevent layout shifting
+    private final Dimension DIM_TURN_CONTAINER = new Dimension(300, 150);
 
     public BattleFrame(Map playerMap) {
         super("Battleship - Combat Mode");
@@ -64,13 +58,29 @@ public class BattleFrame extends JFrame {
 
         setLayout(new BorderLayout());
 
-        // CENTER
+        // CENTER PANEL (Main Game Area)
         JPanel centerPanel = new JPanel(new BorderLayout());
         centerPanel.setBackground(new Color(50, 50, 50));
 
-        JPanel gridContainer = new JPanel(new GridLayout(1, 2, 20, 0));
-        gridContainer.setOpaque(false);
-        gridContainer.setBorder(new EmptyBorder(20, 20, 20, 20));
+        // WRAPPER: Holds both Headers and Grids
+        JPanel gameBoardContainer = new JPanel(new BorderLayout());
+        gameBoardContainer.setOpaque(false);
+        gameBoardContainer.setBorder(new EmptyBorder(20, 20, 20, 20));
+
+        // 1. HEADERS ROW (Top) - Separated from grids so resizing doesn't break layout
+        JPanel headerPanel = new JPanel(new GridLayout(1, 2, 20, 0));
+        headerPanel.setOpaque(false);
+        headerPanel.setBorder(new EmptyBorder(0, 0, 10, 0)); // Gap between header and grid
+
+        JLabel lblPlayerHeader = createHeaderLabel("/res/images/yourfleet.png");
+        JLabel lblEnemyHeader = createHeaderLabel("/res/images/enemysector.png");
+
+        headerPanel.add(lblPlayerHeader);
+        headerPanel.add(lblEnemyHeader);
+
+        // 2. MAPS ROW (Center)
+        JPanel mapPanel = new JPanel(new GridLayout(1, 2, 20, 0));
+        mapPanel.setOpaque(false);
 
         pnlPlayer = new UIMapPanel(playerMap, true);
         pnlComputer = new UIMapPanel(computerMap, false);
@@ -83,10 +93,16 @@ public class BattleFrame extends JFrame {
             }
         });
 
-        gridContainer.add(createLabeledPanel("YOUR FLEET", pnlPlayer));
-        gridContainer.add(createLabeledPanel("ENEMY SECTOR", pnlComputer));
-        centerPanel.add(gridContainer, BorderLayout.CENTER);
+        mapPanel.add(pnlPlayer);
+        mapPanel.add(pnlComputer);
 
+        // Assemble the Game Board
+        gameBoardContainer.add(headerPanel, BorderLayout.NORTH);
+        gameBoardContainer.add(mapPanel, BorderLayout.CENTER);
+
+        centerPanel.add(gameBoardContainer, BorderLayout.CENTER);
+
+        // LOG AREA (Bottom)
         logArea = new JTextArea();
         logArea.setEditable(false);
         logArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
@@ -99,17 +115,21 @@ public class BattleFrame extends JFrame {
         centerPanel.add(scroll, BorderLayout.SOUTH);
         add(centerPanel, BorderLayout.CENTER);
 
-        // RIGHT
+        // RIGHT PANEL
         rightPanel = new JPanel();
         rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
-        rightPanel.setPreferredSize(new Dimension(300, 0));
+        rightPanel.setPreferredSize(new Dimension(320, 0));
         rightPanel.setBackground(new Color(40, 40, 40));
         rightPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
 
         turnContainer = new JPanel();
-        turnContainer.setLayout(new BoxLayout(turnContainer, BoxLayout.Y_AXIS));
+        turnContainer.setLayout(new BorderLayout());
         turnContainer.setOpaque(false);
-        turnContainer.setMaximumSize(new Dimension(300, 160));
+
+        turnContainer.setPreferredSize(DIM_TURN_CONTAINER);
+        turnContainer.setMaximumSize(DIM_TURN_CONTAINER);
+        turnContainer.setMinimumSize(DIM_TURN_CONTAINER);
+
         initTurnPanels();
         updateTurnIndicators(true);
         rightPanel.add(turnContainer);
@@ -124,8 +144,10 @@ public class BattleFrame extends JFrame {
 
         JPanel abilityGrid = new JPanel(new GridLayout(1, 2, 15, 0));
         abilityGrid.setOpaque(false);
-        abilityGrid.setPreferredSize(new Dimension(280, 60));
+        abilityGrid.setPreferredSize(new Dimension(280, 45));
+        abilityGrid.setMaximumSize(new Dimension(280, 45));
         abilityGrid.setAlignmentX(Component.CENTER_ALIGNMENT);
+
         btnScout = new JButton("SCOUT");
         btnTsunami = new JButton("TSUNAMI");
         styleButton(btnScout);
@@ -155,9 +177,17 @@ public class BattleFrame extends JFrame {
         btnSolve.setBackground(new Color(0, 102, 204));
         btnSolve.setForeground(Color.WHITE);
         btnSolve.setAlignmentX(Component.CENTER_ALIGNMENT);
-        btnSolve.setMaximumSize(new Dimension(280, 50));
+        btnSolve.setMaximumSize(new Dimension(280, 45));
+        btnSolve.setPreferredSize(new Dimension(280, 45));
         btnSolve.addActionListener(e -> runSolver());
         rightPanel.add(btnSolve);
+
+        rightPanel.add(Box.createVerticalStrut(20));
+        UIStatPanel statPanel = new UIStatPanel();
+        statPanel.setPreferredSize(new Dimension(300, 120));
+        statPanel.setMaximumSize(new Dimension(500, 120));
+        statPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        rightPanel.add(statPanel);
 
         add(rightPanel, BorderLayout.EAST);
         checkAbilityAvailability();
@@ -165,15 +195,82 @@ public class BattleFrame extends JFrame {
     }
 
     private void initTurnPanels() {
-        pnlYourTurn = new JPanel(new BorderLayout());
-        lblYourTurn = new JLabel("YOUR TURN", SwingConstants.CENTER);
-        lblYourTurn.setForeground(Color.WHITE);
-        pnlYourTurn.add(lblYourTurn, BorderLayout.CENTER);
+        lblTurnIndicator = new JLabel();
+        lblTurnIndicator.setHorizontalAlignment(SwingConstants.CENTER);
 
-        pnlEnemyTurn = new JPanel(new BorderLayout());
-        lblEnemyTurn = new JLabel("ENEMY TURN", SwingConstants.CENTER);
-        lblEnemyTurn.setForeground(Color.WHITE);
-        pnlEnemyTurn.add(lblEnemyTurn, BorderLayout.CENTER);
+        int targetWidth = DIM_TURN_CONTAINER.width - 20;
+        imgYourTurn = loadScaledImage("/res/images/yourturn.png", targetWidth, -1);
+        imgEnemyTurn = loadScaledImage("/res/images/enemyturn.png", targetWidth, -1);
+
+        turnContainer.add(lblTurnIndicator, BorderLayout.CENTER);
+    }
+
+    private ImageIcon loadScaledImage(String path, int targetWidth, int targetHeight) {
+        try {
+            java.net.URL url = getClass().getResource(path);
+            if (url != null) {
+                ImageIcon icon = new ImageIcon(url);
+                Image img = icon.getImage();
+                if (img.getWidth(null) > 0) {
+                    int w = targetWidth;
+                    int h = targetHeight;
+
+                    if (w > 0 && h == -1) {
+                        double ratio = (double) img.getHeight(null) / img.getWidth(null);
+                        h = (int) (w * ratio);
+                    } else if (h > 0 && w == -1) {
+                        double ratio = (double) img.getWidth(null) / img.getHeight(null);
+                        w = (int) (h * ratio);
+                    }
+
+                    // Safety check for turn container bounds
+                    if (targetHeight == -1 && targetWidth == (DIM_TURN_CONTAINER.width - 20)) {
+                        if (h > DIM_TURN_CONTAINER.height) {
+                            h = DIM_TURN_CONTAINER.height;
+                            w = (int) (h * ((double)img.getWidth(null)/img.getHeight(null)));
+                        }
+                    }
+
+                    Image scaled = img.getScaledInstance(w, h, Image.SCALE_SMOOTH);
+                    return new ImageIcon(scaled);
+                }
+                return icon;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    // Helper method to create the fleet headers separately
+    private JLabel createHeaderLabel(String imagePath) {
+        JLabel l = new JLabel();
+        l.setHorizontalAlignment(SwingConstants.CENTER);
+
+        // --- EDIT SIZE HERE ---
+        // Change '60' to make the image bigger or smaller (height in pixels).
+        // Since we separated the rows, this won't break the grid layout!
+        ImageIcon icon = loadScaledImage(imagePath, 300, 200);
+
+        if (icon != null) {
+            l.setIcon(icon);
+        } else {
+            l.setText(imagePath);
+            l.setForeground(Color.WHITE);
+        }
+        return l;
+    }
+
+    private void updateTurnIndicators(boolean isPlayer) {
+        if (isPlayer) {
+            if (imgYourTurn != null) lblTurnIndicator.setIcon(imgYourTurn);
+            else lblTurnIndicator.setText("YOUR TURN");
+        } else {
+            if (imgEnemyTurn != null) lblTurnIndicator.setIcon(imgEnemyTurn);
+            else lblTurnIndicator.setText("ENEMY TURN");
+        }
+        turnContainer.revalidate();
+        turnContainer.repaint();
     }
 
     private void checkAbilityAvailability() {
@@ -299,44 +396,6 @@ public class BattleFrame extends JFrame {
             }
         });
         solverTimer.start();
-    }
-
-    private void updateTurnIndicators(boolean isPlayer) {
-        turnContainer.removeAll();
-        if (isPlayer) {
-            stylePanel(pnlYourTurn, lblYourTurn, COLOR_PLAYER, DIM_ACTIVE, true);
-            turnContainer.add(pnlYourTurn);
-            stylePanel(pnlEnemyTurn, lblEnemyTurn, COLOR_ENEMY_DIM, DIM_INACTIVE, false);
-            turnContainer.add(pnlEnemyTurn);
-        } else {
-            stylePanel(pnlEnemyTurn, lblEnemyTurn, COLOR_ENEMY, DIM_ACTIVE, true);
-            turnContainer.add(pnlEnemyTurn);
-            stylePanel(pnlYourTurn, lblYourTurn, COLOR_PLAYER_DIM, DIM_INACTIVE, false);
-            turnContainer.add(pnlYourTurn);
-        }
-        turnContainer.revalidate();
-        turnContainer.repaint();
-    }
-
-    private void stylePanel(JPanel pnl, JLabel lbl, Color bg, Dimension dim, boolean isActive) {
-        pnl.setBackground(bg);
-        pnl.setMaximumSize(dim);
-        pnl.setPreferredSize(dim);
-        pnl.setBorder(isActive ? BorderFactory.createLineBorder(Color.WHITE, 2) : BorderFactory.createLineBorder(Color.GRAY, 1));
-        lbl.setFont(new Font("Arial", Font.BOLD, isActive ? 28 : 16));
-        lbl.setForeground(isActive ? Color.WHITE : Color.LIGHT_GRAY);
-    }
-
-    private JPanel createLabeledPanel(String title, JPanel panel) {
-        JPanel p = new JPanel(new BorderLayout());
-        p.setOpaque(false);
-        JLabel l = new JLabel(title, SwingConstants.CENTER);
-        l.setForeground(Color.WHITE);
-        l.setFont(new Font("Arial", Font.BOLD, 14));
-        l.setBorder(new EmptyBorder(0, 0, 5, 0));
-        p.add(l, BorderLayout.NORTH);
-        p.add(panel, BorderLayout.CENTER);
-        return p;
     }
 
     private void styleButton(JButton btn) {
