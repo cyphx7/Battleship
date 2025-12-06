@@ -252,8 +252,11 @@ public class BattleFrame extends JFrame {
 
         JButton btnSolve = new JButton("AUTO-PILOT");
         styleButton(btnSolve);
-        btnSolve.setBackground(new Color(139, 69, 19));
+        btnSolve.setBackground(new Color(205, 178, 161)); // Darker brown
         btnSolve.setForeground(Color.WHITE);
+        btnSolve.setOpaque(true); // Make sure the button is opaque
+        btnSolve.setBorderPainted(false); // Remove the default border
+        btnSolve.setFocusPainted(false); // Remove the focus border
         btnSolve.setAlignmentX(Component.CENTER_ALIGNMENT);
         btnSolve.setMaximumSize(new Dimension(280, 45));
         btnSolve.setPreferredSize(new Dimension(280, 45));
@@ -387,18 +390,57 @@ public class BattleFrame extends JFrame {
 
     // In BattleFrame.java
     private void updateUIStatPanel() {
-        // Get all player ship sizes
-        int[] playerSizes = getShipSizes(playerMap.getShipList());
-        int[] computerSizes = getShipSizes(computerMap.getShipList());
-
-        // Create arrays to track which ships are alive
-        boolean[] playerShipStates = new boolean[5]; // Assuming 5 ship types
+        // Get all player and computer ships
+        MyLinkedList<Ship> playerShips = playerMap.getShipList();
+        MyLinkedList<Ship> computerShips = computerMap.getShipList();
+        
+        // Get all sunk ships
+        MyLinkedList<Ship> playerSunkShips = playerMap.getSunkList();
+        MyLinkedList<Ship> computerSunkShips = computerMap.getSunkList();
+        
+        // Initialize arrays for ship states and sizes
+        boolean[] playerShipStates = new boolean[5];
         boolean[] computerShipStates = new boolean[5];
-
-        // Mark all ships as alive by default
+        int[] playerSizes = new int[5];
+        int[] computerSizes = new int[5];
+        
+        // Default ship sizes (2, 3, 3, 4, 5)
+        int[] defaultSizes = {2, 3, 3, 4, 5};
+        
+        // Initialize with default sizes and all ships alive
         for (int i = 0; i < 5; i++) {
+            playerSizes[i] = defaultSizes[i];
+            computerSizes[i] = defaultSizes[i];
             playerShipStates[i] = true;
             computerShipStates[i] = true;
+        }
+        
+        // Update player ship states based on sunk ships
+        for (int i = 0; i < playerSunkShips.size(); i++) {
+            Ship s = playerSunkShips.get(i);
+            int size = Math.max(Math.abs(s.getEndX() - s.getStartX()), 
+                              Math.abs(s.getEndY() - s.getStartY())) + 1;
+            // Find the index of this ship size and mark it as sunk
+            for (int j = 0; j < defaultSizes.length; j++) {
+                if (defaultSizes[j] == size && playerShipStates[j]) {
+                    playerShipStates[j] = false;
+                    break;
+                }
+            }
+        }
+        
+        // Update computer ship states based on sunk ships
+        for (int i = 0; i < computerSunkShips.size(); i++) {
+            Ship s = computerSunkShips.get(i);
+            int size = Math.max(Math.abs(s.getEndX() - s.getStartX()), 
+                              Math.abs(s.getEndY() - s.getStartY())) + 1;
+            // Find the index of this ship size and mark it as sunk
+            for (int j = 0; j < defaultSizes.length; j++) {
+                if (defaultSizes[j] == size && computerShipStates[j]) {
+                    computerShipStates[j] = false;
+                    break;
+                }
+            }
         }
 
         // Update the stat panel with the current states
