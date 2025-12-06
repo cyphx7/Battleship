@@ -24,9 +24,9 @@ public class ShipPlacementFrame extends JFrame {
     private int currentDirection = 0; // 0 = Horizontal, 1 = Vertical
     private int currentShipIndex = 0;
 
-    private final String[] SHIP_NAMES = {"Carrier", "Battleship", "Cruiser", "Submarine", "Destroyer"};
-    private final int[] SHIP_SIZES = {5, 4, 3, 3, 2};
-    private final String[] SHIP_IMAGES = {"ship1.png", "ship2.png", "ship3.png", "ship 3.png", "ship4.png"};
+    private final String[] SHIP_NAMES = {"Kobaya", "Supply", "Ashigaru", "Sekibune", "Atakebune"};
+    private final int[] SHIP_SIZES = {2, 3, 3, 4, 5};
+    private final String[] SHIP_IMAGES = {"ship1.png", "ship2.png", "ship3.png", "ship4.png", "ship4.png"};
 
     private final Color COLOR_BG = new Color(50, 50, 50);
     private final Color COLOR_SIDEBAR = new Color(40, 40, 40);

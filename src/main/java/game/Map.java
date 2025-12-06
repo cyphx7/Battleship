@@ -4,13 +4,17 @@ import java.util.Random;
 
 public class Map {
     public static final int MAP_SIZE = 10;
-    public static final char EMPTY = '0', SHIP = 'X', WATER = 'A', HIT = 'C';
+    public static final char EMPTY = '0', SHIP = 'X', WATER = 'A', HIT = 'C', MISS = 'M';
 
     private char[][] mapGrid;
     private MyLinkedList<Ship> shipList;
 
+    // --- NEW: Track sunk ships separately for the UI ---
+    private MyLinkedList<Ship> sunkList;
+
     public Map() {
         shipList = new MyLinkedList<>();
+        sunkList = new MyLinkedList<>();
         mapGrid = new char[MAP_SIZE][MAP_SIZE];
         for (int i = 0; i < MAP_SIZE; i++)
             for (int j = 0; j < MAP_SIZE; j++)
@@ -18,12 +22,25 @@ public class Map {
     }
 
     public char getGridAt(int row, int col) {
+        if (!isValidPos(row, col)) return EMPTY;
         return mapGrid[row][col];
     }
 
-    // --- NEW: Methods needed for UI ---
+    public void setGridAt(int row, int col, char c) {
+        if(isValidPos(row, col)) mapGrid[row][col] = c;
+    }
+
+    public boolean isValidPos(int row, int col) {
+        return row >= 0 && row < MAP_SIZE && col >= 0 && col < MAP_SIZE;
+    }
+
     public MyLinkedList<Ship> getShipList() {
         return shipList;
+    }
+
+    // --- NEW: Accessor for sunk ships ---
+    public MyLinkedList<Ship> getSunkList() {
+        return sunkList;
     }
 
     public Ship getShipAt(Position p) {
@@ -35,18 +52,16 @@ public class Map {
         }
         return null;
     }
-    // ----------------------------------
 
     public void fillRandomly() {
         clear();
         Random r = new Random();
-        // Place ships and immediately assign their images for the AI/Enemy map
         Ship s;
-        s = placeShipGet(r, 5); if(s!=null) s.setImageName("ship1.png"); // Carrier/Ship1
-        s = placeShipGet(r, 4); if(s!=null) s.setImageName("ship2.png"); // Battleship/Ship2
+        s = placeShipGet(r, 5); if(s!=null) s.setImageName("ship5.png");
+        s = placeShipGet(r, 4); if(s!=null) s.setImageName("ship4.png");
         s = placeShipGet(r, 3); if(s!=null) s.setImageName("ship3.png");
-        s = placeShipGet(r, 3); if(s!=null) s.setImageName("ship 3.png");
-        s = placeShipGet(r, 2); if(s!=null) s.setImageName("ship4.png");
+        s = placeShipGet(r, 3); if(s!=null) s.setImageName("ship2.png");
+        s = placeShipGet(r, 2); if(s!=null) s.setImageName("ship1.png");
     }
 
     private Ship placeShipGet(Random r, int size) {
@@ -59,6 +74,7 @@ public class Map {
 
     private void clear() {
         shipList.clear();
+        sunkList.clear(); // Clear sunk list too
         for (int i = 0; i < MAP_SIZE; i++)
             for (int j = 0; j < MAP_SIZE; j++)
                 mapGrid[i][j] = EMPTY;
@@ -142,7 +158,7 @@ public class Map {
     public boolean fireAt(Position p) {
         int row = p.getX();
         int col = p.getY();
-        if (row < 0 || row >= MAP_SIZE || col < 0 || col >= MAP_SIZE) return false;
+        if (!isValidPos(row, col)) return false;
 
         if (mapGrid[row][col] == SHIP) {
             mapGrid[row][col] = HIT;
@@ -173,9 +189,24 @@ public class Map {
                 if (mapGrid[i][j] != HIT) return null;
             }
         }
+
+        // --- UPDATED: Move to sunk list instead of just removing ---
+        sunkList.add(ship);
         shipList.remove(ship);
         return ship;
     }
+
+    // --- NEW: UI Helper ---
+    public boolean isSunkAt(int row, int col) {
+        for (int i = 0; i < sunkList.size(); i++) {
+            if (sunkList.get(i).contains(row, col)) return true;
+        }
+        return false;
+    }
+
+    public boolean isHit(Position p) { return mapGrid[p.getX()][p.getY()] == HIT; }
+    public boolean isWater(Position p) { return mapGrid[p.getX()][p.getY()] == WATER || mapGrid[p.getX()][p.getY()] == MISS; }
+    public boolean hasShips() { return !shipList.isEmpty(); }
 
     public boolean isShipAlive(int size) {
         for (int i = 0; i < shipList.size(); i++) {
@@ -185,9 +216,4 @@ public class Map {
         }
         return false;
     }
-
-    public void setWater(Position p) { mapGrid[p.getX()][p.getY()] = WATER; }
-    public boolean isWater(Position p) { return mapGrid[p.getX()][p.getY()] == WATER; }
-    public boolean isHit(Position p) { return mapGrid[p.getX()][p.getY()] == HIT; }
-    public boolean hasShips() { return !shipList.isEmpty(); }
 }
