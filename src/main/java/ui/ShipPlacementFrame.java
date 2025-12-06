@@ -6,13 +6,74 @@ import game.Ship;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
+import javax.swing.border.*;
 import java.awt.*;
+import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.net.URL;
 import java.util.Random;
+import game.Position;
+import java.awt.event.MouseEvent;
 
 public class ShipPlacementFrame extends JFrame {
+    // Custom Background Panel
+    private class BackgroundPanel extends JPanel {
+        private Image backgroundImage;
+        
+        public BackgroundPanel() {
+            try {
+                URL imageUrl = getClass().getResource("/res/images/battleImg.jpg");
+                if (imageUrl != null) {
+                    backgroundImage = ImageIO.read(imageUrl);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            setOpaque(false);
+        }
+        
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            if (backgroundImage != null) {
+                // Scale image to fit panel while maintaining aspect ratio
+                double scale = Math.max(
+                    getWidth() / (double)backgroundImage.getWidth(null),
+                    getHeight() / (double)backgroundImage.getHeight(null)
+                );
+                int width = (int)(backgroundImage.getWidth(null) * scale);
+                int height = (int)(backgroundImage.getHeight(null) * scale);
+                int x = (getWidth() - width) / 2;
+                int y = (getHeight() - height) / 2;
+                g.drawImage(backgroundImage, x, y, width, height, this);
+            } else {
+                // Fallback to dark gray if image fails to load
+                g.setColor(new Color(30, 30, 30));
+                g.fillRect(0, 0, getWidth(), getHeight());
+            }
+        }
+    }
+    
+    // Rounded panel for the sidebar
+    private class RoundedPanel extends JPanel {
+        private int cornerRadius = 20;
+        private Color bgColor = new Color(30, 30, 30, 200);
+        
+        public RoundedPanel() {
+            setOpaque(false);
+        }
+        
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2d = (Graphics2D) g.create();
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2d.setColor(bgColor);
+            g2d.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), cornerRadius, cornerRadius));
+            g2d.dispose();
+        }
+    }
     private Map mapPlayer;
     private UIMapPanel panelPlayer;
     private JPanel centerPanel;
@@ -28,24 +89,72 @@ public class ShipPlacementFrame extends JFrame {
     private final int[] SHIP_SIZES = {2, 3, 3, 4, 5};
     private final String[] SHIP_IMAGES = {"ship1.png", "ship2.png", "ship3.png", "ship4.png", "ship4.png"};
 
-    private final Color COLOR_BG = new Color(50, 50, 50);
-    private final Color COLOR_SIDEBAR = new Color(40, 40, 40);
-    private final Color COLOR_TEXT = Color.WHITE;
-    private final Color COLOR_ACCENT = new Color(255, 165, 0);
-    private final Color COLOR_SUCCESS = new Color(50, 205, 50);
+    private final Color COLOR_BG = new Color(0, 0, 0, 0);
+    private final Color COLOR_SIDEBAR = new Color(30, 30, 30, 200);
+    private final Color COLOR_TEXT = new Color(255, 255, 255, 220);
+    private final Color COLOR_ACCENT = new Color(210, 180, 140, 220);
+    private final Color COLOR_SUCCESS = new Color(50, 205, 50, 220);
+    private final Color COLOR_BUTTON = new Color(139, 69, 19, 200);
+    private final Color COLOR_BUTTON_HOVER = new Color(160, 82, 45, 220);
+
+    private void handleGridClick(Position position, MouseEvent e) {
+        // Handle grid click for ship placement
+        if (currentShipIndex < SHIP_SIZES.length) {
+            boolean placed = mapPlayer.placeShip(
+                position.getX(),
+                position.getY(),
+                SHIP_SIZES[currentShipIndex],
+                currentDirection
+            );
+            if (placed) {
+                panelPlayer.repaint();
+                currentShipIndex++;
+                updateUI();
+            }
+        }
+    }
+
+    private void updateUI() {
+        // Update UI to reflect current ship placement status
+        if (currentShipIndex < SHIP_NAMES.length) {
+            lblStatus.setText("Place your " + SHIP_NAMES[currentShipIndex] + " (" + SHIP_SIZES[currentShipIndex] + " cells)");
+            shipLabels[currentShipIndex].setForeground(COLOR_ACCENT);
+        } else {
+            lblStatus.setText("All ships placed! Click Start Battle!");
+            btnStart.setEnabled(true);
+        }
+    }
 
     public ShipPlacementFrame() {
         super("Fleet Deployment");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(1400, 950);
+        setLocationRelativeTo(null);
+
+        // Set the content pane to our custom background panel
+        setContentPane(new BackgroundPanel());
         setLayout(new BorderLayout());
-        getContentPane().setBackground(COLOR_BG);
+
+        // Set UI manager defaults for consistent styling
+        UIManager.put("Panel.background", new Color(0, 0, 0, 0));
+        UIManager.put("TextArea.background", new Color(255, 255, 255, 20));
+        UIManager.put("TextArea.foreground", COLOR_TEXT);
+        UIManager.put("TextArea.border", BorderFactory.createLineBorder(new Color(139, 69, 19, 100), 1));
+        UIManager.put("ScrollPane.border", BorderFactory.createEmptyBorder());
+        UIManager.put("ScrollPane.background", new Color(0, 0, 0, 0));
+        UIManager.put("Viewport.background", new Color(0, 0, 0, 0));
+
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         mapPlayer = new Map();
 
         // --- CENTER PANEL (Grid) ---
         centerPanel = new JPanel(new GridBagLayout());
-        centerPanel.setBackground(COLOR_BG);
+        centerPanel.setOpaque(false);
 
         // We pass 'true' to indicate this is the placement phase (grid handles clicks)
         panelPlayer = new UIMapPanel(mapPlayer, true);
@@ -55,11 +164,11 @@ public class ShipPlacementFrame extends JFrame {
         add(centerPanel, BorderLayout.CENTER);
 
         // --- RIGHT SIDEBAR ---
-        JPanel rightPanel = new JPanel();
-        rightPanel.setLayout(new GridBagLayout()); // Locked layout structure
+        JPanel rightPanel = new RoundedPanel();
+        rightPanel.setLayout(new GridBagLayout());
+        rightPanel.setOpaque(false);
         rightPanel.setPreferredSize(new Dimension(500, 0));
-        rightPanel.setBackground(COLOR_SIDEBAR);
-        rightPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        rightPanel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
@@ -178,33 +287,50 @@ public class ShipPlacementFrame extends JFrame {
     }
 
     private JButton createGraphicButton(String text, String imagePath, Color fallbackColor) {
-        JButton btn = new JButton();
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        JButton btn = new JButton() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                // Completely transparent background
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Only draw the content (text/icon), no background or border
+                super.paintComponent(g);
+                g2d.dispose();
+            }
 
+            @Override
+            protected void paintBorder(Graphics g) {
+                // No border - we're drawing it in paintComponent
+            }
+        };
+
+        // Basic button styling
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setOpaque(false);
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setFocusPainted(false);
+        
+        // Set button size
         int w = 250;
-        int h = 150;
+        int h = 100;
         btn.setPreferredSize(new Dimension(w, h));
         btn.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        ImageIcon icon = loadIcon(imagePath, w, h);
-
+        
+        // Set text properties
+        btn.setForeground(COLOR_TEXT);
+        btn.setFont(new Font("Arial", Font.BOLD, 20));
+        
+        // Add icon if available
+        ImageIcon icon = loadIcon(imagePath, w - 40, h - 20);
         if (icon != null) {
             btn.setIcon(icon);
             btn.setText("");
-            btn.setOpaque(false);
-            btn.setContentAreaFilled(false);
-            btn.setBorderPainted(false);
-            // Visible Ghost Icon for Disabled State
             btn.setDisabledIcon(createGhostIcon(icon));
+            btn.setToolTipText(text);
         } else {
             btn.setText(text);
-            btn.setBackground(fallbackColor);
-            btn.setForeground(Color.WHITE);
-            btn.setFont(new Font("Arial", Font.BOLD, 22));
-            btn.setFocusPainted(false);
-            btn.setOpaque(true);
-            btn.setContentAreaFilled(true);
-            btn.setBorder(BorderFactory.createLineBorder(Color.WHITE, 2));
         }
         return btn;
     }
@@ -327,12 +453,27 @@ public class ShipPlacementFrame extends JFrame {
     }
 
     private void styleButton(JButton btn) {
-        btn.setBackground(Color.DARK_GRAY);
-        btn.setForeground(Color.WHITE);
+        btn.setOpaque(false);
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
         btn.setFocusPainted(false);
+        btn.setForeground(COLOR_TEXT);
         btn.setFont(new Font("Arial", Font.BOLD, 18));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Add hover effect
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                btn.setForeground(COLOR_ACCENT);
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                btn.setForeground(COLOR_TEXT);
+            }
+        });
+
         int w = 220;
-        int h = 60;
+        int h = 50;
         btn.setPreferredSize(new Dimension(w, h));
     }
 }

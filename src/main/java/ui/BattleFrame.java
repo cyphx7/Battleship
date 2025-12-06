@@ -21,6 +21,35 @@ import java.awt.TexturePaint;
 import java.awt.Rectangle;
 import javax.imageio.ImageIO;
 
+class BackgroundPanel extends JPanel {
+    private BufferedImage background;
+    
+    public BackgroundPanel() {
+        super();
+        try {
+            URL bgUrl = getClass().getResource("/res/images/battleImg.jpg");
+            if (bgUrl != null) {
+                background = ImageIO.read(bgUrl);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        if (background != null) {
+            // Scale the image to fit the panel
+            g.drawImage(background, 0, 0, getWidth(), getHeight(), this);
+        } else {
+            // Fallback color if image loading fails
+            g.setColor(new Color(30, 30, 60));
+            g.fillRect(0, 0, getWidth(), getHeight());
+        }
+    }
+}
+
 public class BattleFrame extends JFrame {
     private Map playerMap;
     private Map computerMap;
@@ -68,11 +97,21 @@ public class BattleFrame extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setMinimumSize(new Dimension(1200, 800));
+        
+        // Set content pane to our custom background panel
+        setContentPane(new BackgroundPanel());
         setLayout(new BorderLayout());
+        
+        // Apply the look and feel settings
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         // Main center panel
         JPanel centerPanel = new JPanel(new BorderLayout());
-        centerPanel.setBackground(new Color(50, 50, 50));
+        centerPanel.setOpaque(false);
 
         // Game board container
         JPanel gameBoardContainer = new JPanel(new BorderLayout());
@@ -117,20 +156,28 @@ public class BattleFrame extends JFrame {
         gameBoardWrapper.add(gameBoardContainer, BorderLayout.CENTER);
 
         // Create log area
-        logArea = new JTextArea();
+        logArea = new JTextArea() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                // Semi-transparent background for the text area
+                g.setColor(new Color(255, 255, 255, 180));
+                g.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+                super.paintComponent(g);
+            }
+        };
         logArea.setEditable(false);
         logArea.setFont(new Font("Courier New", Font.BOLD, 14));
         logArea.setForeground(Color.BLACK);
-        logArea.setBackground(new Color(222, 184, 135));
+        logArea.setOpaque(false);
         logArea.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
         logArea.setLineWrap(true);
         logArea.setWrapStyleWord(true);
 
         // Create scroll pane for log
         JScrollPane scroll = new JScrollPane(logArea);
-        scroll.setBorder(BorderFactory.createLineBorder(new Color(139, 69, 19), 2));
-        scroll.setBackground(new Color(222, 184, 135));
-        scroll.getViewport().setBackground(new Color(222, 184, 135));
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.setBorder(BorderFactory.createLineBorder(new Color(139, 69, 19, 200), 2, true));
         scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
         scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         scroll.setPreferredSize(new Dimension(0, 150)); // Fixed height
@@ -143,10 +190,17 @@ public class BattleFrame extends JFrame {
         add(centerPanel, BorderLayout.CENTER);
 
         // Right panel setup
-        rightPanel = new JPanel();
+        rightPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                g.setColor(new Color(40, 40, 40, 200)); // Semi-transparent dark background
+                g.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+            }
+        };
         rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
         rightPanel.setPreferredSize(new Dimension(320, 0));
-        rightPanel.setBackground(new Color(40, 40, 40));
+        rightPanel.setOpaque(false);
         rightPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
 
         turnContainer = new JPanel();
